@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PC Control - Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --dark: #1f2937;
+            --gray: #6b7280;
+            --light: #f3f4f6;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: var(--white);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: var(--dark);
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: var(--gray);
+        }
+
+        .status-bar {
+            background: var(--white);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .pc-card {
+            background: var(--white);
+            border-radius: 16px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .pc-card.offline {
+            opacity: 0.6;
+            border: 2px dashed var(--gray);
+        }
+
+        .pc-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--light);
+        }
+
+        .pc-info h3 {
+            color: var(--dark);
+            font-size: 1.5em;
+            margin-bottom: 5px;
+        }
+
+        .pc-details {
+            color: var(--gray);
+            font-size: 0.9em;
+        }
+
+        .status-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .status-badge.online {
+            background: var(--success);
+            color: white;
+        }
+
+        .status-badge.offline {
+            background: var(--gray);
+            color: white;
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .control-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 15px 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: all 0.3s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .control-btn:hover:not(:disabled) {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .control-btn:disabled {
+            background: var(--gray);
+            cursor: not-allowed;
+        }
+
+        .control-btn.danger {
+            background: var(--danger);
+        }
+
+        .control-btn.danger:hover:not(:disabled) {
+            background: #dc2626;
+        }
+
+        .control-btn.success {
+            background: var(--success);
+        }
+
+        .control-btn.warning {
+            background: var(--warning);
+        }
+
+        .volume-control {
+            background: var(--light);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .volume-control h4 {
+            color: var(--dark);
+            margin-bottom: 15px;
+        }
+
+        .volume-slider {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: var(--gray);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+        }
+
+        .volume-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .volume-btn {
+            background: var(--white);
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            padding: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .volume-btn:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .app-launcher {
+            background: var(--light);
+            padding: 20px;
+            border-radius: 12px;
+        }
+
+        .app-launcher h4 {
+            color: var(--dark);
+            margin-bottom: 15px;
+        }
+
+        .app-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 12px;
+        }
+
+        .app-btn {
+            background: var(--white);
+            border: 2px solid var(--light);
+            padding: 15px;
+            border-radius: 12px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .app-btn:hover:not(:disabled) {
+            border-color: var(--primary);
+            transform: scale(1.05);
+        }
+
+        .app-icon {
+            font-size: 2em;
+            margin-bottom: 8px;
+        }
+
+        .app-name {
+            font-size: 0.85em;
+            color: var(--dark);
+            font-weight: 600;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 12px;
+            background: var(--success);
+            color: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            animation: slideIn 0.3s;
+            z-index: 1000;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid var(--light);
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🖥️ PC Control Dashboard</h1>
+            <p>Controle seus PCs remotamente via Alexa e IFTTT</p>
+        </div>
+
+        <div class="status-bar">
+            <p><strong>Status do Servidor:</strong> <span id="serverStatus">Conectando...</span></p>
+            <p><strong>PCs Conectados:</strong> <span id="pcCount">0</span></p>
+        </div>
+
+        <div id="pcList" class="loading">
+            <div class="spinner"></div>
+            <p>Carregando PCs...</p>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = window.location.origin;
+        let selectedPC = null;
+
+        async function loadPCs() {
+            try {
+                const response = await fetch(`${API_URL}/api/pcs`);
+                const pcs = await response.json();
+                
+                document.getElementById('pcCount').textContent = pcs.length;
+                document.getElementById('serverStatus').textContent = '✅ Online';
+                
+                const pcList = document.getElementById('pcList');
+                pcList.style.display = 'block';
+                pcList.innerHTML = '';
+                
+                if (pcs.length === 0) {
+                    pcList.innerHTML = `
+                        <div class="pc-card">
+                            <p style="text-align: center; color: var(--gray);">
+                                Nenhum PC conectado. Inicie o cliente no seu PC.
+                            </p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                pcs.forEach(pc => {
+                    const card = createPCCard(pc);
+                    pcList.appendChild(card);
+                });
+                
+                if (pcs.length > 0 && !selectedPC) {
+                    selectedPC = pcs[0].macAddress;
+                }
+                
+            } catch (error) {
+                console.error('Erro ao carregar PCs:', error);
+                document.getElementById('serverStatus').textContent = '❌ Erro';
+            }
+        }
+
+        function createPCCard(pc) {
+            const card = document.createElement('div');
+            card.className = `pc-card ${!pc.online ? 'offline' : ''}`;
+            card.innerHTML = `
+                <div class="pc-header">
+                    <div class="pc-info">
+                        <h3>${pc.hostname}</h3>
+                        <div class="pc-details">
+                            <div>IP: ${pc.ip}</div>
+                            <div>MAC: ${pc.macAddress}</div>
+                        </div>
+                    </div>
+                    <span class="status-badge ${pc.online ? 'online' : 'offline'}">
+                        ${pc.online ? '🟢 Online' : '🔴 Offline'}
+                    </span>
+                </div>
+
+                <!-- Controles de Sistema -->
+                <div class="controls-grid">
+                    <button class="control-btn danger" onclick="sendCommand('${pc.macAddress}', 'shutdown', {delay: 0})" ${!pc.online ? 'disabled' : ''}>
+                        🔴 Desligar Agora
+                    </button>
+                    <button class="control-btn warning" onclick="sendCommand('${pc.macAddress}', 'shutdown', {delay: 60})" ${!pc.online ? 'disabled' : ''}>
+                        ⏰ Desligar 1h
+                    </button>
+                    <button class="control-btn warning" onclick="sendCommand('${pc.macAddress}', 'shutdown', {delay: 90})" ${!pc.online ? 'disabled' : ''}>
+                        ⏰ Desligar 1:30h
+                    </button>
+                    <button class="control-btn warning" onclick="sendCommand('${pc.macAddress}', 'shutdown', {delay: 120})" ${!pc.online ? 'disabled' : ''}>
+                        ⏰ Desligar 2h
+                    </button>
+                    <button class="control-btn success" onclick="sendCommand('${pc.macAddress}', 'cancel-shutdown')" ${!pc.online ? 'disabled' : ''}>
+                        ✅ Cancelar Shutdown
+                    </button>
+                    <button class="control-btn" onclick="sendCommand('${pc.macAddress}', 'lock-pc')" ${!pc.online ? 'disabled' : ''}>
+                        🔒 Bloquear
+                    </button>
+                    <button class="control-btn" onclick="sendCommand('${pc.macAddress}', 'sleep')" ${!pc.online ? 'disabled' : ''}>
+                        😴 Suspender
+                    </button>
+                    <button class="control-btn" onclick="sendCommand('${pc.macAddress}', 'monitor-off')" ${!pc.online ? 'disabled' : ''}>
+                        📴 Monitor Off
+                    </button>
+                </div>
+
+                <!-- Modos -->
+                <div class="controls-grid">
+                    <button class="control-btn" onclick="sendCommand('${pc.macAddress}', 'cinema-mode')" ${!pc.online ? 'disabled' : ''}>
+                        🎬 Modo Cinema
+                    </button>
+                    <button class="control-btn" onclick="sendCommand('${pc.macAddress}', 'console-mode')" ${!pc.online ? 'disabled' : ''}>
+                        🎮 Modo Console
+                    </button>
+                </div>
+
+                <!-- Controle de Volume -->
+                <div class="volume-control">
+                    <h4>🔊 Controle de Volume</h4>
+                    <input type="range" class="volume-slider" min="0" max="100" value="50" 
+                           onchange="sendCommand('${pc.macAddress}', 'set-volume', {volume: this.value})"
+                           ${!pc.online ? 'disabled' : ''}>
+                    <div class="volume-buttons">
+                        <button class="volume-btn" onclick="setVolume('${pc.macAddress}', 10)" ${!pc.online ? 'disabled' : ''}>10%</button>
+                        <button class="volume-btn" onclick="setVolume('${pc.macAddress}', 20)" ${!pc.online ? 'disabled' : ''}>20%</button>
+                        <button class="volume-btn" onclick="setVolume('${pc.macAddress}', 30)" ${!pc.online ? 'disabled' : ''}>30%</button>
+                        <button class="volume-btn" onclick="setVolume('${pc.macAddress}', 50)" ${!pc.online ? 'disabled' : ''}>50%</button>
+                        <button class="volume-btn" onclick="setVolume('${pc.macAddress}', 80)" ${!pc.online ? 'disabled' : ''}>80%</button>
+                        <button class="volume-btn" onclick="setVolume('${pc.macAddress}', 100)" ${!pc.online ? 'disabled' : ''}>100%</button>
+                    </div>
+                </div>
+
+                <!-- Apps -->
+                <div class="app-launcher">
+                    <h4>🚀 Lançar Aplicativos</h4>
+                    <div class="app-grid">
+                        <button class="app-btn" onclick="openApp('${pc.macAddress}', 'youtube')" ${!pc.online ? 'disabled' : ''}>
+                            <div class="app-icon">📺</div>
+                            <div class="app-name">YouTube</div>
+                        </button>
+                        <button class="app-btn" onclick="openApp('${pc.macAddress}', 'brave')" ${!pc.online ? 'disabled' : ''}>
+                            <div class="app-icon">🌐</div>
+                            <div class="app-name">Brave</div>
+                        </button>
+                        <button class="app-btn" onclick="openApp('${pc.macAddress}', 'league')" ${!pc.online ? 'disabled' : ''}>
+                            <div class="app-icon">🎮</div>
+                            <div class="app-name">LoL</div>
+                        </button>
+                        <button class="app-btn" onclick="openApp('${pc.macAddress}', 'steam')" ${!pc.online ? 'disabled' : ''}>
+                            <div class="app-icon">🎮</div>
+                            <div class="app-name">Steam</div>
+                        </button>
+                        <button class="app-btn" onclick="openApp('${pc.macAddress}', 'spotify')" ${!pc.online ? 'disabled' : ''}>
+                            <div class="app-icon">🎵</div>
+                            <div class="app-name">Spotify</div>
+                        </button>
+                        <button class="app-btn" onclick="openApp('${pc.macAddress}', 'discord')" ${!pc.online ? 'disabled' : ''}>
+                            <div class="app-icon">💬</div>
+                            <div class="app-name">Discord</div>
+                        </button>
+                    </div>
+                </div>
+            `;
+            return card;
+        }
+
+        async function sendCommand(macAddress, command, params = {}) {
+            try {
+                const response = await fetch(`${API_URL}/api/command/${macAddress}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ command, params })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification(`✅ Comando "${command}" enviado!`);
+                } else {
+                    showNotification(`❌ Erro: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showNotification('❌ Erro ao enviar comando', 'error');
+            }
+        }
+
+        function setVolume(macAddress, volume) {
+            sendCommand(macAddress, 'set-volume', { volume });
+        }
+
+        function openApp(macAddress, app) {
+            sendCommand(macAddress, 'open-app', { app });
+        }
+
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.style.background = type === 'error' ? 'var(--danger)' : 'var(--success)';
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        // Carregar PCs ao iniciar
+        loadPCs();
+        
+        // Recarregar a cada 5 segundos
+        setInterval(loadPCs, 5000);
+    </script>
+</body>
+</html>
