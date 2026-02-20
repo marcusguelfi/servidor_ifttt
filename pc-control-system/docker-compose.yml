@@ -24,14 +24,11 @@ services:
     container_name: pc-control-nodered
     restart: unless-stopped
     user: "0"
-    ports:
-      - "1880:1880"
+    network_mode: host
     volumes:
       - nodered-data:/data
     environment:
       - TZ=America/Sao_Paulo
-    networks:
-      - pc-control-network
 
 volumes:
   pc-control-data:
