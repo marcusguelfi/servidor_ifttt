@@ -8,10 +8,10 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./server:/app
-      - ./web:/app/../web
+      - ./server:/app/server
+      - ./web:/app/web
       - ./data:/data
-    working_dir: /app
+    working_dir: /app/server
     command: sh -c "npm install && npm start"
     environment:
       - NODE_ENV=production
