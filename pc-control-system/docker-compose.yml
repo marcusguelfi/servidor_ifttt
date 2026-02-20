@@ -9,6 +9,7 @@ services:
       - "3000:3000"
     volumes:
       - ./server:/app
+      - ./web:/app/../web
       - ./data:/data
     working_dir: /app
     command: sh -c "npm install && npm start"
@@ -16,6 +17,20 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - DATA_PATH=/data
+      - API_KEY=${API_KEY:-}
+    networks:
+      - pc-control-network
+
+  node-red:
+    image: nodered/node-red:latest
+    container_name: pc-control-nodered
+    restart: unless-stopped
+    ports:
+      - "1880:1880"
+    volumes:
+      - ./nodered:/data
+    environment:
+      - TZ=America/Sao_Paulo
     networks:
       - pc-control-network
 

@@ -3,516 +3,612 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PC Control - Dashboard</title>
+    <title>PC Control</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         :root {
-            --primary: #6366f1;
-            --primary-dark: #4f46e5;
-            --success: #10b981;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-            --dark: #1f2937;
-            --gray: #6b7280;
-            --light: #f3f4f6;
-            --white: #ffffff;
+            --bg: #0f0f1a;
+            --surface: #1a1a2e;
+            --surface2: #222240;
+            --accent: #6c63ff;
+            --accent-hover: #5a52e0;
+            --success: #00c853;
+            --danger: #ff3d57;
+            --warning: #ffab00;
+            --text: #e8e8f0;
+            --text-dim: #8888aa;
+            --border: #2a2a4a;
+            --radius: 12px;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
             min-height: 100vh;
-            padding: 20px;
+            padding: 16px;
         }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
+        .container { max-width: 800px; margin: 0 auto; }
 
+        /* Header */
         .header {
-            background: var(--white);
-            border-radius: 16px;
-            padding: 30px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            padding: 20px 0 16px;
         }
-
-        .header h1 {
-            color: var(--dark);
-            font-size: 2em;
-            margin-bottom: 10px;
-        }
-
-        .header p {
-            color: var(--gray);
-        }
-
-        .status-bar {
-            background: var(--white);
-            border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        .pc-card {
-            background: var(--white);
-            border-radius: 16px;
-            padding: 25px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        .pc-card.offline {
-            opacity: 0.6;
-            border: 2px dashed var(--gray);
-        }
-
-        .pc-header {
-            display: flex;
-            justify-content: space-between;
+        .header h1 { font-size: 1.5em; font-weight: 700; }
+        .header .status {
+            display: inline-flex;
             align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid var(--light);
-        }
-
-        .pc-info h3 {
-            color: var(--dark);
-            font-size: 1.5em;
-            margin-bottom: 5px;
-        }
-
-        .pc-details {
-            color: var(--gray);
-            font-size: 0.9em;
-        }
-
-        .status-badge {
-            padding: 8px 16px;
-            border-radius: 20px;
+            gap: 6px;
+            margin-top: 8px;
             font-size: 0.85em;
-            font-weight: 600;
+            color: var(--text-dim);
         }
-
-        .status-badge.online {
-            background: var(--success);
-            color: white;
-        }
-
-        .status-badge.offline {
-            background: var(--gray);
-            color: white;
-        }
-
-        .controls-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-
-        .control-btn {
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 15px 20px;
-            border-radius: 12px;
-            cursor: pointer;
-            font-size: 1em;
-            font-weight: 600;
-            transition: all 0.3s;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .control-btn:hover:not(:disabled) {
-            background: var(--primary-dark);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-        }
-
-        .control-btn:disabled {
-            background: var(--gray);
-            cursor: not-allowed;
-        }
-
-        .control-btn.danger {
+        .header .dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
             background: var(--danger);
         }
+        .header .dot.online { background: var(--success); }
 
-        .control-btn.danger:hover:not(:disabled) {
-            background: #dc2626;
-        }
-
-        .control-btn.success {
-            background: var(--success);
-        }
-
-        .control-btn.warning {
-            background: var(--warning);
-        }
-
-        .volume-control {
-            background: var(--light);
-            padding: 20px;
-            border-radius: 12px;
+        /* System Info Bar */
+        .sysinfo {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
             margin-bottom: 20px;
         }
+        .sysinfo-card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 14px;
+            text-align: center;
+        }
+        .sysinfo-card .label { font-size: 0.75em; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .sysinfo-card .value { font-size: 1.6em; font-weight: 700; margin-top: 4px; }
+        .sysinfo-card .detail { font-size: 0.75em; color: var(--text-dim); margin-top: 2px; }
 
-        .volume-control h4 {
-            color: var(--dark);
-            margin-bottom: 15px;
+        /* Sections */
+        .section {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 14px;
+        }
+        .section-title {
+            font-size: 0.8em;
+            font-weight: 600;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
         }
 
+        /* Button Grid */
+        .btn-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 8px;
+        }
+        .btn-grid.wide { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+
+        .btn {
+            background: var(--surface2);
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 12px 8px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.85em;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+        .btn:hover:not(:disabled) {
+            background: var(--accent);
+            border-color: var(--accent);
+            transform: translateY(-1px);
+        }
+        .btn:active:not(:disabled) { transform: scale(0.97); }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn .icon { font-size: 1.4em; }
+
+        .btn.danger { border-color: var(--danger); color: var(--danger); }
+        .btn.danger:hover:not(:disabled) { background: var(--danger); color: #fff; }
+        .btn.success { border-color: var(--success); color: var(--success); }
+        .btn.success:hover:not(:disabled) { background: var(--success); color: #fff; }
+        .btn.warning { border-color: var(--warning); color: var(--warning); }
+        .btn.warning:hover:not(:disabled) { background: var(--warning); color: #fff; }
+
+        /* Volume */
+        .volume-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
         .volume-slider {
-            width: 100%;
-            height: 8px;
-            border-radius: 5px;
-            background: var(--gray);
-            outline: none;
+            flex: 1;
             -webkit-appearance: none;
+            height: 6px;
+            border-radius: 3px;
+            background: var(--border);
+            outline: none;
         }
-
         .volume-slider::-webkit-slider-thumb {
             -webkit-appearance: none;
-            appearance: none;
-            width: 20px;
-            height: 20px;
+            width: 20px; height: 20px;
             border-radius: 50%;
-            background: var(--primary);
+            background: var(--accent);
             cursor: pointer;
         }
-
-        .volume-buttons {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
-            gap: 10px;
-            margin-top: 15px;
+        .volume-value {
+            font-size: 1.1em;
+            font-weight: 700;
+            min-width: 40px;
+            text-align: center;
         }
+        .volume-presets {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 6px;
+        }
+        .vol-btn {
+            background: var(--surface2);
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 8px 4px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.8em;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .vol-btn:hover { background: var(--accent); border-color: var(--accent); }
 
-        .volume-btn {
-            background: var(--white);
-            border: 2px solid var(--primary);
-            color: var(--primary);
-            padding: 8px;
+        /* Audio Devices */
+        .audio-row {
+            display: flex;
+            gap: 8px;
+        }
+        .audio-select {
+            flex: 1;
+            background: var(--surface2);
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 0.9em;
+        }
+        .audio-select option { background: var(--surface2); }
+        .audio-apply {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
             border-radius: 8px;
             cursor: pointer;
             font-weight: 600;
-            transition: all 0.3s;
+            transition: background 0.2s;
         }
+        .audio-apply:hover { background: var(--accent-hover); }
 
-        .volume-btn:hover {
-            background: var(--primary);
-            color: white;
-        }
-
-        .app-launcher {
-            background: var(--light);
-            padding: 20px;
-            border-radius: 12px;
-        }
-
-        .app-launcher h4 {
-            color: var(--dark);
-            margin-bottom: 15px;
-        }
-
-        .app-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        /* Media Controls */
+        .media-row {
+            display: flex;
+            justify-content: center;
             gap: 12px;
         }
-
-        .app-btn {
-            background: var(--white);
-            border: 2px solid var(--light);
-            padding: 15px;
-            border-radius: 12px;
+        .media-btn {
+            background: var(--surface2);
+            color: var(--text);
+            border: 1px solid var(--border);
+            width: 56px; height: 56px;
+            border-radius: 50%;
             cursor: pointer;
-            text-align: center;
-            transition: all 0.3s;
+            font-size: 1.4em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
         }
+        .media-btn:hover { background: var(--accent); border-color: var(--accent); }
+        .media-btn.play { width: 64px; height: 64px; font-size: 1.6em; }
 
-        .app-btn:hover:not(:disabled) {
-            border-color: var(--primary);
-            transform: scale(1.05);
+        /* TTS */
+        .tts-row {
+            display: flex;
+            gap: 8px;
         }
-
-        .app-icon {
-            font-size: 2em;
-            margin-bottom: 8px;
+        .tts-input {
+            flex: 1;
+            background: var(--surface2);
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 0.9em;
         }
-
-        .app-name {
-            font-size: 0.85em;
-            color: var(--dark);
+        .tts-input::placeholder { color: var(--text-dim); }
+        .tts-send {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
             font-weight: 600;
         }
+        .tts-send:hover { background: var(--accent-hover); }
 
-        .notification {
+        /* Apps */
+        .app-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 8px;
+        }
+        .app-btn {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 8px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .app-btn:hover { border-color: var(--accent); transform: scale(1.05); }
+        .app-btn .icon { font-size: 1.6em; }
+        .app-btn .name { font-size: 0.7em; color: var(--text-dim); margin-top: 4px; }
+
+        /* Toast */
+        .toast {
             position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 15px 25px;
-            border-radius: 12px;
-            background: var(--success);
-            color: white;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            animation: slideIn 0.3s;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--accent);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 0.9em;
+            font-weight: 500;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            transition: transform 0.3s;
             z-index: 1000;
         }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast.error { background: var(--danger); }
 
-        @keyframes slideIn {
-            from {
-                transform: translateX(400px);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 20px;
-        }
-
-        .spinner {
-            border: 4px solid var(--light);
-            border-top: 4px solid var(--primary);
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        /* Shutdown timers */
+        .timer-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
         }
     </style>
 </head>
 <body>
     <div class="container">
+        <!-- Header -->
         <div class="header">
-            <h1>🖥️ PC Control Dashboard</h1>
-            <p>Controle seus PCs remotamente via Alexa e IFTTT</p>
+            <h1>PC Control</h1>
+            <div class="status">
+                <span class="dot" id="statusDot"></span>
+                <span id="statusText">Conectando...</span>
+                <span id="pcName"></span>
+            </div>
         </div>
 
-        <div class="status-bar">
-            <p><strong>Status do Servidor:</strong> <span id="serverStatus">Conectando...</span></p>
-            <p><strong>PCs Conectados:</strong> <span id="pcCount">0</span></p>
+        <!-- System Info -->
+        <div class="sysinfo" id="sysinfoSection" style="display:none">
+            <div class="sysinfo-card">
+                <div class="label">CPU</div>
+                <div class="value" id="cpuVal">-</div>
+                <div class="detail" id="cpuDetail"></div>
+            </div>
+            <div class="sysinfo-card">
+                <div class="label">RAM</div>
+                <div class="value" id="ramVal">-</div>
+                <div class="detail" id="ramDetail"></div>
+            </div>
+            <div class="sysinfo-card">
+                <div class="label">Disco</div>
+                <div class="value" id="diskVal">-</div>
+                <div class="detail" id="diskDetail"></div>
+            </div>
         </div>
 
-        <div id="pcList" class="loading">
-            <div class="spinner"></div>
-            <p>Carregando PCs...</p>
+        <!-- Sistema -->
+        <div class="section">
+            <div class="section-title">Sistema</div>
+            <div class="btn-grid wide">
+                <button class="btn danger" onclick="cmd('shutdown')">
+                    <span class="icon">&#x23FB;</span> Desligar
+                </button>
+                <button class="btn warning" onclick="cmd('restart')">
+                    <span class="icon">&#x21BB;</span> Reiniciar
+                </button>
+                <button class="btn" onclick="cmd('sleep')">
+                    <span class="icon">&#x263E;</span> Suspender
+                </button>
+                <button class="btn" onclick="cmd('lock-pc')">
+                    <span class="icon">&#x1F512;</span> Bloquear
+                </button>
+                <button class="btn" onclick="cmd('monitor-off')">
+                    <span class="icon">&#x1F4F4;</span> Monitor Off
+                </button>
+            </div>
+        </div>
+
+        <!-- Shutdown Timer -->
+        <div class="section">
+            <div class="section-title">Timer Desligar</div>
+            <div class="timer-grid">
+                <button class="btn warning" onclick="cmd('shutdown', {delay: 60})">1h</button>
+                <button class="btn warning" onclick="cmd('shutdown', {delay: 90})">1:30h</button>
+                <button class="btn warning" onclick="cmd('shutdown', {delay: 120})">2h</button>
+                <button class="btn success" onclick="cmd('cancel-shutdown')">Cancelar</button>
+            </div>
+        </div>
+
+        <!-- Modos -->
+        <div class="section">
+            <div class="section-title">Modos</div>
+            <div class="btn-grid wide">
+                <button class="btn" onclick="cmd('cinema-mode')">
+                    <span class="icon">&#x1F3AC;</span> Cinema
+                </button>
+                <button class="btn" onclick="cmd('console-mode')">
+                    <span class="icon">&#x1F3AE;</span> Console
+                </button>
+                <button class="btn" onclick="cmd('retro-console')">
+                    <span class="icon">&#x1F579;</span> Retro
+                </button>
+                <button class="btn" onclick="cmd('night-mode')">
+                    <span class="icon">&#x1F319;</span> Night
+                </button>
+            </div>
+        </div>
+
+        <!-- Volume -->
+        <div class="section">
+            <div class="section-title">Volume</div>
+            <div class="volume-row">
+                <button class="media-btn" onclick="cmd('mute')" title="Mute">&#x1F507;</button>
+                <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="50"
+                       oninput="document.getElementById('volumeVal').textContent=this.value+'%'"
+                       onchange="cmd('set-volume', {volume: parseInt(this.value)})">
+                <span class="volume-value" id="volumeVal">50%</span>
+            </div>
+            <div class="volume-presets">
+                <button class="vol-btn" onclick="setVol(10)">10</button>
+                <button class="vol-btn" onclick="setVol(20)">20</button>
+                <button class="vol-btn" onclick="setVol(30)">30</button>
+                <button class="vol-btn" onclick="setVol(50)">50</button>
+                <button class="vol-btn" onclick="setVol(80)">80</button>
+                <button class="vol-btn" onclick="setVol(100)">100</button>
+            </div>
+        </div>
+
+        <!-- Audio Devices -->
+        <div class="section" id="audioSection" style="display:none">
+            <div class="section-title">Saida de Audio</div>
+            <div class="audio-row">
+                <select class="audio-select" id="audioDeviceSelect"></select>
+                <button class="audio-apply" onclick="switchAudio()">Trocar</button>
+            </div>
+        </div>
+
+        <!-- Media Controls -->
+        <div class="section">
+            <div class="section-title">Midia</div>
+            <div class="media-row">
+                <button class="media-btn" onclick="cmd('media-prev')">&#x23EE;</button>
+                <button class="media-btn play" onclick="cmd('media-play-pause')">&#x23EF;</button>
+                <button class="media-btn" onclick="cmd('media-next')">&#x23ED;</button>
+            </div>
+        </div>
+
+        <!-- TTS -->
+        <div class="section">
+            <div class="section-title">Texto para Fala</div>
+            <div class="tts-row">
+                <input type="text" class="tts-input" id="ttsInput" placeholder="Digite algo para o PC falar..."
+                       onkeypress="if(event.key==='Enter') sendTTS()">
+                <button class="tts-send" onclick="sendTTS()">Falar</button>
+            </div>
+        </div>
+
+        <!-- Apps -->
+        <div class="section">
+            <div class="section-title">Aplicativos</div>
+            <div class="app-grid">
+                <button class="app-btn" onclick="cmd('open-app', {app:'youtube'})">
+                    <div class="icon">&#x25B6;</div>
+                    <div class="name">YouTube</div>
+                </button>
+                <button class="app-btn" onclick="cmd('open-app', {app:'brave'})">
+                    <div class="icon">&#x1F310;</div>
+                    <div class="name">Brave</div>
+                </button>
+                <button class="app-btn" onclick="cmd('open-app', {app:'steam'})">
+                    <div class="icon">&#x1F3AE;</div>
+                    <div class="name">Steam</div>
+                </button>
+                <button class="app-btn" onclick="cmd('open-app', {app:'spotify'})">
+                    <div class="icon">&#x266B;</div>
+                    <div class="name">Spotify</div>
+                </button>
+                <button class="app-btn" onclick="cmd('open-app', {app:'discord'})">
+                    <div class="icon">&#x1F4AC;</div>
+                    <div class="name">Discord</div>
+                </button>
+                <button class="app-btn" onclick="cmd('open-app', {app:'lol'})">
+                    <div class="icon">&#x2694;</div>
+                    <div class="name">LoL</div>
+                </button>
+            </div>
         </div>
     </div>
 
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
     <script>
-        const API_URL = window.location.origin;
-        let selectedPC = null;
+        const API = window.location.origin;
+        let currentMAC = null;
+
+        // ===== API Calls =====
+
+        async function cmd(command, params = {}) {
+            try {
+                let url, body;
+                if (currentMAC) {
+                    url = `${API}/api/webhook/${currentMAC}/${command}`;
+                    body = params;
+                } else {
+                    url = `${API}/api/command/${command}`;
+                    body = params;
+                }
+
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    toast(`${command} enviado`);
+                } else {
+                    toast(data.error || 'Erro', true);
+                }
+            } catch (e) {
+                toast('Erro de conexao', true);
+            }
+        }
+
+        function setVol(v) {
+            document.getElementById('volumeSlider').value = v;
+            document.getElementById('volumeVal').textContent = v + '%';
+            cmd('set-volume', { volume: v });
+        }
+
+        function switchAudio() {
+            const sel = document.getElementById('audioDeviceSelect');
+            const device = sel.value;
+            if (device) cmd('set-audio-device', { device });
+        }
+
+        function sendTTS() {
+            const input = document.getElementById('ttsInput');
+            const text = input.value.trim();
+            if (text) {
+                cmd('tts', { text });
+                input.value = '';
+            }
+        }
+
+        // ===== Data Loading =====
 
         async function loadPCs() {
             try {
-                const response = await fetch(`${API_URL}/api/pcs`);
-                const pcs = await response.json();
-                
-                document.getElementById('pcCount').textContent = pcs.length;
-                document.getElementById('serverStatus').textContent = '✅ Online';
-                
-                const pcList = document.getElementById('pcList');
-                pcList.style.display = 'block';
-                pcList.innerHTML = '';
-                
-                if (pcs.length === 0) {
-                    pcList.innerHTML = `
-                        <div class="pc-card">
-                            <p style="text-align: center; color: var(--gray);">
-                                Nenhum PC conectado. Inicie o cliente no seu PC.
-                            </p>
-                        </div>
-                    `;
-                    return;
-                }
-                
-                pcs.forEach(pc => {
-                    const card = createPCCard(pc);
-                    pcList.appendChild(card);
-                });
-                
-                if (pcs.length > 0 && !selectedPC) {
-                    selectedPC = pcs[0].macAddress;
-                }
-                
-            } catch (error) {
-                console.error('Erro ao carregar PCs:', error);
-                document.getElementById('serverStatus').textContent = '❌ Erro';
-            }
-        }
+                const res = await fetch(`${API}/api/pcs`);
+                const pcs = await res.json();
 
-        function createPCCard(pc) {
-            const card = document.createElement('div');
-            card.className = `pc-card ${!pc.online ? 'offline' : ''}`;
-            card.innerHTML = `
-                <div class="pc-header">
-                    <div class="pc-info">
-                        <h3>${pc.hostname}</h3>
-                        <div class="pc-details">
-                            <div>IP: ${pc.ip}</div>
-                            <div>MAC: ${pc.macAddress}</div>
-                        </div>
-                    </div>
-                    <span class="status-badge ${pc.online ? 'online' : 'offline'}">
-                        ${pc.online ? '🟢 Online' : '🔴 Offline'}
-                    </span>
-                </div>
+                const dot = document.getElementById('statusDot');
+                const text = document.getElementById('statusText');
+                const name = document.getElementById('pcName');
 
-                <!-- Controles de Sistema -->
-                <div class="controls-grid">
-                    <button class="control-btn danger" onclick="sendCommand('${pc.macAddress}', 'shutdown', {delay: 0})" ${!pc.online ? 'disabled' : ''}>
-                        🔴 Desligar Agora
-                    </button>
-                    <button class="control-btn warning" onclick="sendCommand('${pc.macAddress}', 'shutdown', {delay: 60})" ${!pc.online ? 'disabled' : ''}>
-                        ⏰ Desligar 1h
-                    </button>
-                    <button class="control-btn warning" onclick="sendCommand('${pc.macAddress}', 'shutdown', {delay: 90})" ${!pc.online ? 'disabled' : ''}>
-                        ⏰ Desligar 1:30h
-                    </button>
-                    <button class="control-btn warning" onclick="sendCommand('${pc.macAddress}', 'shutdown', {delay: 120})" ${!pc.online ? 'disabled' : ''}>
-                        ⏰ Desligar 2h
-                    </button>
-                    <button class="control-btn success" onclick="sendCommand('${pc.macAddress}', 'cancel-shutdown')" ${!pc.online ? 'disabled' : ''}>
-                        ✅ Cancelar Shutdown
-                    </button>
-                    <button class="control-btn" onclick="sendCommand('${pc.macAddress}', 'lock-pc')" ${!pc.online ? 'disabled' : ''}>
-                        🔒 Bloquear
-                    </button>
-                    <button class="control-btn" onclick="sendCommand('${pc.macAddress}', 'sleep')" ${!pc.online ? 'disabled' : ''}>
-                        😴 Suspender
-                    </button>
-                    <button class="control-btn" onclick="sendCommand('${pc.macAddress}', 'monitor-off')" ${!pc.online ? 'disabled' : ''}>
-                        📴 Monitor Off
-                    </button>
-                </div>
-
-                <!-- Modos -->
-                <div class="controls-grid">
-                    <button class="control-btn" onclick="sendCommand('${pc.macAddress}', 'cinema-mode')" ${!pc.online ? 'disabled' : ''}>
-                        🎬 Modo Cinema
-                    </button>
-                    <button class="control-btn" onclick="sendCommand('${pc.macAddress}', 'console-mode')" ${!pc.online ? 'disabled' : ''}>
-                        🎮 Modo Console
-                    </button>
-                </div>
-
-                <!-- Controle de Volume -->
-                <div class="volume-control">
-                    <h4>🔊 Controle de Volume</h4>
-                    <input type="range" class="volume-slider" min="0" max="100" value="50" 
-                           onchange="sendCommand('${pc.macAddress}', 'set-volume', {volume: this.value})"
-                           ${!pc.online ? 'disabled' : ''}>
-                    <div class="volume-buttons">
-                        <button class="volume-btn" onclick="setVolume('${pc.macAddress}', 10)" ${!pc.online ? 'disabled' : ''}>10%</button>
-                        <button class="volume-btn" onclick="setVolume('${pc.macAddress}', 20)" ${!pc.online ? 'disabled' : ''}>20%</button>
-                        <button class="volume-btn" onclick="setVolume('${pc.macAddress}', 30)" ${!pc.online ? 'disabled' : ''}>30%</button>
-                        <button class="volume-btn" onclick="setVolume('${pc.macAddress}', 50)" ${!pc.online ? 'disabled' : ''}>50%</button>
-                        <button class="volume-btn" onclick="setVolume('${pc.macAddress}', 80)" ${!pc.online ? 'disabled' : ''}>80%</button>
-                        <button class="volume-btn" onclick="setVolume('${pc.macAddress}', 100)" ${!pc.online ? 'disabled' : ''}>100%</button>
-                    </div>
-                </div>
-
-                <!-- Apps -->
-                <div class="app-launcher">
-                    <h4>🚀 Lançar Aplicativos</h4>
-                    <div class="app-grid">
-                        <button class="app-btn" onclick="openApp('${pc.macAddress}', 'youtube')" ${!pc.online ? 'disabled' : ''}>
-                            <div class="app-icon">📺</div>
-                            <div class="app-name">YouTube</div>
-                        </button>
-                        <button class="app-btn" onclick="openApp('${pc.macAddress}', 'brave')" ${!pc.online ? 'disabled' : ''}>
-                            <div class="app-icon">🌐</div>
-                            <div class="app-name">Brave</div>
-                        </button>
-                        <button class="app-btn" onclick="openApp('${pc.macAddress}', 'league')" ${!pc.online ? 'disabled' : ''}>
-                            <div class="app-icon">🎮</div>
-                            <div class="app-name">LoL</div>
-                        </button>
-                        <button class="app-btn" onclick="openApp('${pc.macAddress}', 'steam')" ${!pc.online ? 'disabled' : ''}>
-                            <div class="app-icon">🎮</div>
-                            <div class="app-name">Steam</div>
-                        </button>
-                        <button class="app-btn" onclick="openApp('${pc.macAddress}', 'spotify')" ${!pc.online ? 'disabled' : ''}>
-                            <div class="app-icon">🎵</div>
-                            <div class="app-name">Spotify</div>
-                        </button>
-                        <button class="app-btn" onclick="openApp('${pc.macAddress}', 'discord')" ${!pc.online ? 'disabled' : ''}>
-                            <div class="app-icon">💬</div>
-                            <div class="app-name">Discord</div>
-                        </button>
-                    </div>
-                </div>
-            `;
-            return card;
-        }
-
-        async function sendCommand(macAddress, command, params = {}) {
-            try {
-                const response = await fetch(`${API_URL}/api/command/${macAddress}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ command, params })
-                });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    showNotification(`✅ Comando "${command}" enviado!`);
+                if (pcs.length > 0 && pcs[0].online) {
+                    currentMAC = pcs[0].macAddress;
+                    dot.className = 'dot online';
+                    text.textContent = 'Online';
+                    name.textContent = `- ${pcs[0].hostname}`;
+                    enableButtons(true);
+                    loadSystemInfo();
+                    loadAudioDevices();
                 } else {
-                    showNotification(`❌ Erro: ${result.error}`, 'error');
+                    currentMAC = pcs.length > 0 ? pcs[0].macAddress : null;
+                    dot.className = 'dot';
+                    text.textContent = pcs.length > 0 ? 'Offline' : 'Sem PC';
+                    name.textContent = '';
+                    enableButtons(false);
                 }
-            } catch (error) {
-                showNotification('❌ Erro ao enviar comando', 'error');
+            } catch (e) {
+                document.getElementById('statusText').textContent = 'Servidor offline';
             }
         }
 
-        function setVolume(macAddress, volume) {
-            sendCommand(macAddress, 'set-volume', { volume });
+        async function loadSystemInfo() {
+            if (!currentMAC) return;
+            try {
+                const res = await fetch(`${API}/api/system-info/${currentMAC}`);
+                const info = await res.json();
+
+                if (info.cpu !== undefined) {
+                    document.getElementById('sysinfoSection').style.display = '';
+                    document.getElementById('cpuVal').textContent = info.cpu + '%';
+                    document.getElementById('ramVal').textContent = info.ram_percent + '%';
+                    document.getElementById('ramDetail').textContent = `${info.ram_used_gb}/${info.ram_total_gb} GB`;
+                    document.getElementById('diskVal').textContent = info.disk_percent + '%';
+                    document.getElementById('diskDetail').textContent = `${info.disk_used_gb}/${info.disk_total_gb} GB`;
+
+                    // Color coding
+                    colorCode('cpuVal', info.cpu);
+                    colorCode('ramVal', info.ram_percent);
+                    colorCode('diskVal', info.disk_percent);
+                }
+            } catch (e) {}
         }
 
-        function openApp(macAddress, app) {
-            sendCommand(macAddress, 'open-app', { app });
+        async function loadAudioDevices() {
+            if (!currentMAC) return;
+            try {
+                const res = await fetch(`${API}/api/devices/${currentMAC}`);
+                const devices = await res.json();
+
+                if (devices.length > 0) {
+                    const section = document.getElementById('audioSection');
+                    const select = document.getElementById('audioDeviceSelect');
+                    section.style.display = '';
+                    select.innerHTML = devices.map(d =>
+                        `<option value="${d.name}">${d.name}</option>`
+                    ).join('');
+                }
+            } catch (e) {}
         }
 
-        function showNotification(message, type = 'success') {
-            const notification = document.createElement('div');
-            notification.className = 'notification';
-            notification.style.background = type === 'error' ? 'var(--danger)' : 'var(--success)';
-            notification.textContent = message;
-            
-            document.body.appendChild(notification);
-            
-            setTimeout(() => {
-                notification.remove();
-            }, 3000);
+        function colorCode(id, value) {
+            const el = document.getElementById(id);
+            if (value > 85) el.style.color = 'var(--danger)';
+            else if (value > 60) el.style.color = 'var(--warning)';
+            else el.style.color = 'var(--success)';
         }
 
-        // Carregar PCs ao iniciar
+        function enableButtons(enabled) {
+            document.querySelectorAll('.btn, .vol-btn, .media-btn, .app-btn, .audio-apply, .tts-send').forEach(btn => {
+                btn.disabled = !enabled;
+            });
+        }
+
+        // ===== Toast =====
+
+        function toast(msg, isError = false) {
+            const el = document.getElementById('toast');
+            el.textContent = msg;
+            el.className = 'toast show' + (isError ? ' error' : '');
+            setTimeout(() => el.className = 'toast', 2500);
+        }
+
+        // ===== Init =====
+
         loadPCs();
-        
-        // Recarregar a cada 5 segundos
         setInterval(loadPCs, 5000);
     </script>
 </body>
