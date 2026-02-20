@@ -13,7 +13,11 @@ const API_KEY = process.env.API_KEY || '';
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, '../web')));
+// Em Docker: /app/web, em dev local: ../web
+const webDir = fs.existsSync(path.join(__dirname, 'web'))
+  ? path.join(__dirname, 'web')
+  : path.join(__dirname, '../web');
+app.use(express.static(webDir));
 
 // Storage para PCs conectados
 let connectedPCs = new Map();
@@ -228,7 +232,7 @@ app.get('/api/health', (req, res) => {
 
 // Página inicial
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../web/index.html'));
+  res.sendFile(path.join(webDir, 'index.html'));
 });
 
 // Iniciar servidor

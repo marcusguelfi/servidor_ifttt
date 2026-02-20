@@ -2,17 +2,15 @@ version: '3.8'
 
 services:
   pc-control-server:
-    image: node:18-alpine
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: pc-control-server
     restart: unless-stopped
     ports:
       - "3000:3000"
     volumes:
-      - ./server:/app/server
-      - ./web:/app/web
-      - ./data:/data
-    working_dir: /app/server
-    command: sh -c "npm install && npm start"
+      - pc-control-data:/data
     environment:
       - NODE_ENV=production
       - PORT=3000
@@ -28,11 +26,15 @@ services:
     ports:
       - "1880:1880"
     volumes:
-      - ./nodered:/data
+      - nodered-data:/data
     environment:
       - TZ=America/Sao_Paulo
     networks:
       - pc-control-network
+
+volumes:
+  pc-control-data:
+  nodered-data:
 
 networks:
   pc-control-network:
