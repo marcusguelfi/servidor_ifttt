@@ -263,18 +263,22 @@ class PCControlClient:
 
     # ===== ÁUDIO =====
 
+    def _get_volume_control(self):
+        """Retorna IAudioEndpointVolume compatível com pycaw antigo e novo (AudioDevice wrapper)"""
+        speakers = AudioUtilities.GetSpeakers()
+        # pycaw >= 0.6 retorna AudioDevice wrapper; ._dev contém o IMMDevice real
+        mmdevice = getattr(speakers, '_dev', speakers)
+        interface = mmdevice.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+        return cast(interface, POINTER(IAudioEndpointVolume))
+
     async def set_volume(self, volume):
-        devices = AudioUtilities.GetSpeakers()
-        interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-        volume_control = cast(interface, POINTER(IAudioEndpointVolume))
+        volume_control = self._get_volume_control()
         volume_level = max(0, min(100, int(volume))) / 100.0
         volume_control.SetMasterVolumeLevelScalar(volume_level, None)
         print(f"Volume ajustado para {volume}%")
 
     async def toggle_mute(self):
-        devices = AudioUtilities.GetSpeakers()
-        interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-        volume_control = cast(interface, POINTER(IAudioEndpointVolume))
+        volume_control = self._get_volume_control()
         current_mute = volume_control.GetMute()
         volume_control.SetMute(not current_mute, None)
         state = "mutado" if not current_mute else "desmutado"
