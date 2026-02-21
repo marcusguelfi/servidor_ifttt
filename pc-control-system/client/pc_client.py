@@ -11,6 +11,7 @@ import subprocess
 import socket
 import uuid
 import ctypes
+import winreg
 from ctypes import cast, POINTER
 from comtypes import CLSCTX_ALL
 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
@@ -256,11 +257,28 @@ class PCControlClient:
     async def night_mode(self):
         print("Ativando night mode...")
         await self.set_volume(15)
-        # Desligar monitores secundários
-        # os.system("displayswitch.exe /internal")
-        await asyncio.sleep(1)
-        await self.turn_off_monitor()
+        self._set_night_light(True)
         print("Night mode ativado!")
+
+    def _set_night_light(self, enable: bool):
+        """Liga/desliga Luz Noturna do Windows (Night Light) via registro"""
+        key_path = (
+            r"Software\Microsoft\Windows\CurrentVersion\CloudStore\Store"
+            r"\DefaultAccount\Current"
+            r"\default$windows.data.bluelightreduction.bluelightreductionstate"
+            r"\windows.data.bluelightreduction.bluelightreductionstate"
+        )
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_ALL_ACCESS) as key:
+                data = bytearray(winreg.QueryValueEx(key, "Data")[0])
+                data[18] = 0x13 if enable else 0x10
+                winreg.SetValueEx(key, "Data", 0, winreg.REG_BINARY, bytes(data))
+            # Notificar Windows da mudança para aplicar imediatamente
+            ctypes.windll.user32.SendNotifyMessageW(0xFFFF, 0x001A, 0, "ImmersiveColorSet")
+            state = "ativada" if enable else "desativada"
+            print(f"Luz noturna {state}!")
+        except Exception as e:
+            print(f"Erro ao configurar luz noturna: {e}")
 
     # ===== ÁUDIO =====
 
@@ -289,10 +307,10 @@ class PCControlClient:
         """Muda saída de áudio padrão via PolicyConfig COM API (sem dependências externas)"""
         print(f"Tentando mudar para: {device_name}")
 
-        # Encontrar o device ID pelo nome usando pycaw
+        # Buscar apenas entre saídas ativas (igual ao que aparece na lista do web)
         target_id = None
-        all_devices = AudioUtilities.GetAllDevices()
-        for dev in all_devices:
+        active_outputs = AudioUtilities.GetAllDevices(data_flow=0, device_state=1)
+        for dev in active_outputs:
             if dev.FriendlyName and device_name.lower() in dev.FriendlyName.lower():
                 target_id = dev.id
                 break
