@@ -3,6 +3,7 @@ PC Control Client
 Cliente para Windows que executa comandos remotos via WebSocket
 """
 
+import sys
 import asyncio
 import websockets
 import json
@@ -380,18 +381,25 @@ class PCControlClient:
             return
         print(f"TTS: {text}")
         try:
-            import pyttsx3
-            engine = pyttsx3.init()
-            engine.setProperty('rate', 150)
-            # Tentar voz em português
-            voices = engine.getProperty('voices')
-            for voice in voices:
-                if 'brazil' in voice.name.lower() or 'portuguese' in voice.name.lower():
-                    engine.setProperty('voice', voice.id)
-                    break
-            engine.say(text)
-            engine.runAndWait()
-            engine.stop()
+            import edge_tts
+            import pygame
+            import tempfile
+
+            # Voz configurável via variável de ambiente (padrão: Antonio pt-BR masculino)
+            voice = os.environ.get('TTS_VOICE', 'pt-BR-AntonioNeural')
+            rate = os.environ.get('TTS_RATE', '+0%')
+
+            tts = edge_tts.Communicate(text, voice=voice, rate=rate)
+            tmp = tempfile.mktemp(suffix='.mp3')
+            await tts.save(tmp)
+
+            pygame.mixer.init()
+            pygame.mixer.music.load(tmp)
+            pygame.mixer.music.play()
+            while pygame.mixer.music.get_busy():
+                await asyncio.sleep(0.05)
+            pygame.mixer.quit()
+            os.unlink(tmp)
             print("TTS concluido!")
         except Exception as e:
             print(f"Erro no TTS: {e}")
@@ -515,6 +523,13 @@ class PCControlClient:
 
 
 def main():
+    # Forçar UTF-8 no stdout/stderr (evita crash por encoding cp1252 no Windows)
+    import io
+    if hasattr(sys.stdout, 'buffer'):
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace', line_buffering=True)
+    if hasattr(sys.stderr, 'buffer'):
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace', line_buffering=True)
+
     print("=" * 60)
     print("  PC CONTROL CLIENT")
     print("=" * 60)
