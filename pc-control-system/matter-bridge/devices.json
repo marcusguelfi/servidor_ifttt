@@ -1,0 +1,15 @@
+[
+  { "name": "PC Desligar",            "command": "shutdown" },
+  { "name": "PC Suspender",           "command": "sleep" },
+  { "name": "PC Reiniciar",           "command": "restart" },
+  { "name": "PC Bloquear",            "command": "lock-pc" },
+  { "name": "Monitor PC",             "command": "monitor-off" },
+  { "name": "Modo Cinema",            "command": "cinema-mode" },
+  { "name": "Modo Console",           "command": "console-mode" },
+  { "name": "Modo Retro",             "command": "retro-console" },
+  { "name": "Modo Noturno",           "command": "night-mode" },
+  { "name": "PC Mudo",                "command": "mute" },
+  { "name": "Cancelar Desligamento",  "command": "cancel-shutdown" },
+  { "name": "Media Play Pausa",       "command": "media-play-pause" },
+  { "name": "Volume PC",              "command": "set-volume", "type": "dimmer" }
+]

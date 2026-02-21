@@ -19,28 +19,24 @@ services:
     networks:
       - pc-control-network
 
-  nodered:
+  matter-bridge:
     build:
-      context: ./nodered
+      context: ./matter-bridge
       dockerfile: Dockerfile
-    container_name: pc-control-nodered
+    container_name: pc-matter-bridge
     restart: unless-stopped
-    ports:
-      - "1880:1880"
-    user: "0"
+    # network_mode: host é obrigatório para Matter (mDNS UDP 5353 + Matter TCP/UDP 5540)
+    network_mode: host
     depends_on:
       - pc-control-server
     environment:
-      - TZ=America/Sao_Paulo
-      - NODE_RED_CREDENTIAL_SECRET=${NODE_RED_CREDENTIAL_SECRET:-pc-control-secret}
+      - SERVER_URL=http://localhost:3000
     volumes:
-      - nodered-data:/data
-    networks:
-      - pc-control-network
+      - matter-bridge-data:/data
 
 volumes:
   pc-control-data:
-  nodered-data:
+  matter-bridge-data:
 
 networks:
   pc-control-network:
