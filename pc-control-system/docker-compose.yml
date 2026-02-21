@@ -29,9 +29,12 @@ services:
     user: "0"
     environment:
       - TZ=America/Sao_Paulo
+    volumes:
+      - nodered-data:/data
 
 volumes:
   pc-control-data:
+  nodered-data:
 
 networks:
   pc-control-network:

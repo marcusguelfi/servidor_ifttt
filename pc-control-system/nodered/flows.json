@@ -8,7 +8,7 @@
     },
     {
         "id": "alexa-home-controller",
-        "type": "alexa-home-conf",
+        "type": "alexa-home-controller",
         "name": "Alexa Hue Bridge",
         "port": "80",
         "path": ""
@@ -18,7 +18,7 @@
         "type": "comment",
         "z": "tab-pc-control",
         "name": "=== PC CONTROL via ALEXA (alexa-home) ===",
-        "info": "Emula Philips Hue Bridge v2 na porta 80.\nAlexa descobre os dispositivos automaticamente.\n\nComandos:\n- 'Alexa, ligar PC Desligar'\n- 'Alexa, ligar Modo Cinema'\n- 'Alexa, ligar Modo Console'\n- 'Alexa, colocar Volume PC em 50%'",
+        "info": "Emula Philips Hue Bridge v2 na porta 80.\nAlexa descobre os dispositivos automaticamente.\n\nPasso a passo:\n1. Suba o container com docker-compose up -d\n2. No app Alexa: Dispositivos > '+' > Adicionar dispositivo > Philips Hue > Pular > Descobrir\n3. Os dispositivos aparecem com nomes como 'PC Desligar', 'Modo Cinema', etc.\n\nComandos de voz:\n- 'Alexa, ligar PC Desligar'\n- 'Alexa, ligar Modo Cinema'\n- 'Alexa, colocar Volume PC em 50%'\n- 'Alexa, ligar PC Bloquear'",
         "x": 250,
         "y": 40,
         "wires": []
@@ -39,7 +39,7 @@
         "type": "function",
         "z": "tab-pc-control",
         "name": "POST shutdown",
-        "func": "msg.url = 'http://localhost:3000/api/command/shutdown';\nmsg.method = 'POST';\nmsg.headers = {'Content-Type': 'application/json'};\nmsg.payload = {};\nreturn msg;",
+        "func": "if (!msg.payload.on) return null;\nmsg.url = 'http://localhost:3000/api/command/shutdown';\nmsg.method = 'POST';\nmsg.headers = {'Content-Type': 'application/json'};\nmsg.payload = {};\nreturn msg;",
         "outputs": 1,
         "x": 380,
         "y": 120,
@@ -61,120 +61,10 @@
         "type": "function",
         "z": "tab-pc-control",
         "name": "POST sleep",
-        "func": "msg.url = 'http://localhost:3000/api/command/sleep';\nmsg.method = 'POST';\nmsg.headers = {'Content-Type': 'application/json'};\nmsg.payload = {};\nreturn msg;",
+        "func": "if (!msg.payload.on) return null;\nmsg.url = 'http://localhost:3000/api/command/sleep';\nmsg.method = 'POST';\nmsg.headers = {'Content-Type': 'application/json'};\nmsg.payload = {};\nreturn msg;",
         "outputs": 1,
         "x": 380,
         "y": 180,
-        "wires": [["http-out"]]
-    },
-    {
-        "id": "alexa-cinema",
-        "type": "alexa-home",
-        "z": "tab-pc-control",
-        "conf": "alexa-home-controller",
-        "name": "Modo Cinema",
-        "topic": "",
-        "x": 160,
-        "y": 240,
-        "wires": [["func-cinema"]]
-    },
-    {
-        "id": "func-cinema",
-        "type": "function",
-        "z": "tab-pc-control",
-        "name": "POST cinema-mode",
-        "func": "msg.url = 'http://localhost:3000/api/command/cinema-mode';\nmsg.method = 'POST';\nmsg.headers = {'Content-Type': 'application/json'};\nmsg.payload = {};\nreturn msg;",
-        "outputs": 1,
-        "x": 390,
-        "y": 240,
-        "wires": [["http-out"]]
-    },
-    {
-        "id": "alexa-console",
-        "type": "alexa-home",
-        "z": "tab-pc-control",
-        "conf": "alexa-home-controller",
-        "name": "Modo Console",
-        "topic": "",
-        "x": 170,
-        "y": 300,
-        "wires": [["func-console"]]
-    },
-    {
-        "id": "func-console",
-        "type": "function",
-        "z": "tab-pc-control",
-        "name": "POST console-mode",
-        "func": "msg.url = 'http://localhost:3000/api/command/console-mode';\nmsg.method = 'POST';\nmsg.headers = {'Content-Type': 'application/json'};\nmsg.payload = {};\nreturn msg;",
-        "outputs": 1,
-        "x": 400,
-        "y": 300,
-        "wires": [["http-out"]]
-    },
-    {
-        "id": "alexa-retro",
-        "type": "alexa-home",
-        "z": "tab-pc-control",
-        "conf": "alexa-home-controller",
-        "name": "Modo Retro",
-        "topic": "",
-        "x": 160,
-        "y": 360,
-        "wires": [["func-retro"]]
-    },
-    {
-        "id": "func-retro",
-        "type": "function",
-        "z": "tab-pc-control",
-        "name": "POST retro-console",
-        "func": "msg.url = 'http://localhost:3000/api/command/retro-console';\nmsg.method = 'POST';\nmsg.headers = {'Content-Type': 'application/json'};\nmsg.payload = {};\nreturn msg;",
-        "outputs": 1,
-        "x": 400,
-        "y": 360,
-        "wires": [["http-out"]]
-    },
-    {
-        "id": "alexa-mute",
-        "type": "alexa-home",
-        "z": "tab-pc-control",
-        "conf": "alexa-home-controller",
-        "name": "PC Mudo",
-        "topic": "",
-        "x": 150,
-        "y": 420,
-        "wires": [["func-mute"]]
-    },
-    {
-        "id": "func-mute",
-        "type": "function",
-        "z": "tab-pc-control",
-        "name": "POST mute",
-        "func": "msg.url = 'http://localhost:3000/api/command/mute';\nmsg.method = 'POST';\nmsg.headers = {'Content-Type': 'application/json'};\nmsg.payload = {};\nreturn msg;",
-        "outputs": 1,
-        "x": 370,
-        "y": 420,
-        "wires": [["http-out"]]
-    },
-    {
-        "id": "alexa-night",
-        "type": "alexa-home",
-        "z": "tab-pc-control",
-        "conf": "alexa-home-controller",
-        "name": "Modo Noturno",
-        "topic": "",
-        "x": 170,
-        "y": 480,
-        "wires": [["func-night"]]
-    },
-    {
-        "id": "func-night",
-        "type": "function",
-        "z": "tab-pc-control",
-        "name": "POST night-mode",
-        "func": "msg.url = 'http://localhost:3000/api/command/night-mode';\nmsg.method = 'POST';\nmsg.headers = {'Content-Type': 'application/json'};\nmsg.payload = {};\nreturn msg;",
-        "outputs": 1,
-        "x": 400,
-        "y": 480,
         "wires": [["http-out"]]
     },
     {
@@ -185,7 +75,7 @@
         "name": "PC Reiniciar",
         "topic": "",
         "x": 170,
-        "y": 540,
+        "y": 240,
         "wires": [["func-restart"]]
     },
     {
@@ -193,10 +83,32 @@
         "type": "function",
         "z": "tab-pc-control",
         "name": "POST restart",
-        "func": "msg.url = 'http://localhost:3000/api/command/restart';\nmsg.method = 'POST';\nmsg.headers = {'Content-Type': 'application/json'};\nmsg.payload = {};\nreturn msg;",
+        "func": "if (!msg.payload.on) return null;\nmsg.url = 'http://localhost:3000/api/command/restart';\nmsg.method = 'POST';\nmsg.headers = {'Content-Type': 'application/json'};\nmsg.payload = {};\nreturn msg;",
         "outputs": 1,
         "x": 380,
-        "y": 540,
+        "y": 240,
+        "wires": [["http-out"]]
+    },
+    {
+        "id": "alexa-lock",
+        "type": "alexa-home",
+        "z": "tab-pc-control",
+        "conf": "alexa-home-controller",
+        "name": "PC Bloquear",
+        "topic": "",
+        "x": 160,
+        "y": 300,
+        "wires": [["func-lock"]]
+    },
+    {
+        "id": "func-lock",
+        "type": "function",
+        "z": "tab-pc-control",
+        "name": "POST lock-pc",
+        "func": "if (!msg.payload.on) return null;\nmsg.url = 'http://localhost:3000/api/command/lock-pc';\nmsg.method = 'POST';\nmsg.headers = {'Content-Type': 'application/json'};\nmsg.payload = {};\nreturn msg;",
+        "outputs": 1,
+        "x": 380,
+        "y": 300,
         "wires": [["http-out"]]
     },
     {
@@ -207,7 +119,7 @@
         "name": "Monitor PC",
         "topic": "",
         "x": 160,
-        "y": 600,
+        "y": 360,
         "wires": [["func-monitor"]]
     },
     {
@@ -215,10 +127,164 @@
         "type": "function",
         "z": "tab-pc-control",
         "name": "POST monitor-off",
-        "func": "msg.url = 'http://localhost:3000/api/command/monitor-off';\nmsg.method = 'POST';\nmsg.headers = {'Content-Type': 'application/json'};\nmsg.payload = {};\nreturn msg;",
+        "func": "if (!msg.payload.on) return null;\nmsg.url = 'http://localhost:3000/api/command/monitor-off';\nmsg.method = 'POST';\nmsg.headers = {'Content-Type': 'application/json'};\nmsg.payload = {};\nreturn msg;",
+        "outputs": 1,
+        "x": 400,
+        "y": 360,
+        "wires": [["http-out"]]
+    },
+    {
+        "id": "alexa-cinema",
+        "type": "alexa-home",
+        "z": "tab-pc-control",
+        "conf": "alexa-home-controller",
+        "name": "Modo Cinema",
+        "topic": "",
+        "x": 160,
+        "y": 420,
+        "wires": [["func-cinema"]]
+    },
+    {
+        "id": "func-cinema",
+        "type": "function",
+        "z": "tab-pc-control",
+        "name": "POST cinema-mode",
+        "func": "if (!msg.payload.on) return null;\nmsg.url = 'http://localhost:3000/api/command/cinema-mode';\nmsg.method = 'POST';\nmsg.headers = {'Content-Type': 'application/json'};\nmsg.payload = {};\nreturn msg;",
+        "outputs": 1,
+        "x": 390,
+        "y": 420,
+        "wires": [["http-out"]]
+    },
+    {
+        "id": "alexa-console",
+        "type": "alexa-home",
+        "z": "tab-pc-control",
+        "conf": "alexa-home-controller",
+        "name": "Modo Console",
+        "topic": "",
+        "x": 170,
+        "y": 480,
+        "wires": [["func-console"]]
+    },
+    {
+        "id": "func-console",
+        "type": "function",
+        "z": "tab-pc-control",
+        "name": "POST console-mode",
+        "func": "if (!msg.payload.on) return null;\nmsg.url = 'http://localhost:3000/api/command/console-mode';\nmsg.method = 'POST';\nmsg.headers = {'Content-Type': 'application/json'};\nmsg.payload = {};\nreturn msg;",
+        "outputs": 1,
+        "x": 400,
+        "y": 480,
+        "wires": [["http-out"]]
+    },
+    {
+        "id": "alexa-retro",
+        "type": "alexa-home",
+        "z": "tab-pc-control",
+        "conf": "alexa-home-controller",
+        "name": "Modo Retro",
+        "topic": "",
+        "x": 160,
+        "y": 540,
+        "wires": [["func-retro"]]
+    },
+    {
+        "id": "func-retro",
+        "type": "function",
+        "z": "tab-pc-control",
+        "name": "POST retro-console",
+        "func": "if (!msg.payload.on) return null;\nmsg.url = 'http://localhost:3000/api/command/retro-console';\nmsg.method = 'POST';\nmsg.headers = {'Content-Type': 'application/json'};\nmsg.payload = {};\nreturn msg;",
+        "outputs": 1,
+        "x": 400,
+        "y": 540,
+        "wires": [["http-out"]]
+    },
+    {
+        "id": "alexa-night",
+        "type": "alexa-home",
+        "z": "tab-pc-control",
+        "conf": "alexa-home-controller",
+        "name": "Modo Noturno",
+        "topic": "",
+        "x": 170,
+        "y": 600,
+        "wires": [["func-night"]]
+    },
+    {
+        "id": "func-night",
+        "type": "function",
+        "z": "tab-pc-control",
+        "name": "POST night-mode",
+        "func": "if (!msg.payload.on) return null;\nmsg.url = 'http://localhost:3000/api/command/night-mode';\nmsg.method = 'POST';\nmsg.headers = {'Content-Type': 'application/json'};\nmsg.payload = {};\nreturn msg;",
         "outputs": 1,
         "x": 400,
         "y": 600,
+        "wires": [["http-out"]]
+    },
+    {
+        "id": "alexa-mute",
+        "type": "alexa-home",
+        "z": "tab-pc-control",
+        "conf": "alexa-home-controller",
+        "name": "PC Mudo",
+        "topic": "",
+        "x": 150,
+        "y": 660,
+        "wires": [["func-mute"]]
+    },
+    {
+        "id": "func-mute",
+        "type": "function",
+        "z": "tab-pc-control",
+        "name": "POST mute",
+        "func": "if (!msg.payload.on) return null;\nmsg.url = 'http://localhost:3000/api/command/mute';\nmsg.method = 'POST';\nmsg.headers = {'Content-Type': 'application/json'};\nmsg.payload = {};\nreturn msg;",
+        "outputs": 1,
+        "x": 370,
+        "y": 660,
+        "wires": [["http-out"]]
+    },
+    {
+        "id": "alexa-cancel-shutdown",
+        "type": "alexa-home",
+        "z": "tab-pc-control",
+        "conf": "alexa-home-controller",
+        "name": "Cancelar Desligamento",
+        "topic": "",
+        "x": 190,
+        "y": 720,
+        "wires": [["func-cancel-shutdown"]]
+    },
+    {
+        "id": "func-cancel-shutdown",
+        "type": "function",
+        "z": "tab-pc-control",
+        "name": "POST cancel-shutdown",
+        "func": "if (!msg.payload.on) return null;\nmsg.url = 'http://localhost:3000/api/command/cancel-shutdown';\nmsg.method = 'POST';\nmsg.headers = {'Content-Type': 'application/json'};\nmsg.payload = {};\nreturn msg;",
+        "outputs": 1,
+        "x": 420,
+        "y": 720,
+        "wires": [["http-out"]]
+    },
+    {
+        "id": "alexa-media-playpause",
+        "type": "alexa-home",
+        "z": "tab-pc-control",
+        "conf": "alexa-home-controller",
+        "name": "Media Play Pausa",
+        "topic": "",
+        "x": 185,
+        "y": 780,
+        "wires": [["func-media-playpause"]]
+    },
+    {
+        "id": "func-media-playpause",
+        "type": "function",
+        "z": "tab-pc-control",
+        "name": "POST media-play-pause",
+        "func": "if (!msg.payload.on) return null;\nmsg.url = 'http://localhost:3000/api/command/media-play-pause';\nmsg.method = 'POST';\nmsg.headers = {'Content-Type': 'application/json'};\nmsg.payload = {};\nreturn msg;",
+        "outputs": 1,
+        "x": 420,
+        "y": 780,
         "wires": [["http-out"]]
     },
     {
@@ -229,7 +295,7 @@
         "name": "Volume PC",
         "topic": "",
         "x": 160,
-        "y": 680,
+        "y": 740,
         "wires": [["func-volume"]]
     },
     {
@@ -237,10 +303,10 @@
         "type": "function",
         "z": "tab-pc-control",
         "name": "Extrair volume %",
-        "func": "// alexa-home envia bri (0-254) como dimmer\nvar bri = msg.payload.bri || msg.payload.on_request_bri || 127;\nvar volume = Math.round((bri / 254) * 100);\nmsg.url = 'http://localhost:3000/api/command/set-volume';\nmsg.method = 'POST';\nmsg.headers = {'Content-Type': 'application/json'};\nmsg.payload = { volume: volume };\nreturn msg;",
+        "func": "// Se Alexa desligar o dimmer → mutar\nif (!msg.payload.on) {\n    msg.url = 'http://localhost:3000/api/command/mute';\n    msg.method = 'POST';\n    msg.headers = {'Content-Type': 'application/json'};\n    msg.payload = {};\n    return msg;\n}\n// Alexa envia bri (0-254) para representar o nível\nvar bri = msg.payload.bri || 254;\nvar volume = Math.round((bri / 254) * 100);\nmsg.url = 'http://localhost:3000/api/command/set-volume';\nmsg.method = 'POST';\nmsg.headers = {'Content-Type': 'application/json'};\nmsg.payload = { volume: volume };\nreturn msg;",
         "outputs": 1,
         "x": 400,
-        "y": 680,
+        "y": 740,
         "wires": [["http-out"]]
     },
     {
@@ -256,7 +322,7 @@
         "persist": false,
         "proxy": "",
         "x": 640,
-        "y": 400,
+        "y": 440,
         "wires": [["debug-out"]]
     },
     {
@@ -273,7 +339,7 @@
         "statusVal": "payload.success",
         "statusType": "auto",
         "x": 820,
-        "y": 400,
+        "y": 440,
         "wires": []
     }
 ]
