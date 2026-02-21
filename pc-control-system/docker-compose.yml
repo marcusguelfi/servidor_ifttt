@@ -19,13 +19,16 @@ services:
     networks:
       - pc-control-network
 
-  fauxmo:
+  nodered:
     build:
-      context: ./fauxmo
+      context: ./nodered
       dockerfile: Dockerfile
-    container_name: pc-control-fauxmo
+    container_name: pc-control-nodered
     restart: unless-stopped
     network_mode: host
+    user: "0"
+    environment:
+      - TZ=America/Sao_Paulo
 
 volumes:
   pc-control-data:
