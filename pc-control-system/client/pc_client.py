@@ -302,6 +302,7 @@ class PCControlClient:
 
         # Mudar dispositivo padrão via PolicyConfig (COM interno do Windows, sem módulos extras)
         ps_script = r"""
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
@@ -333,12 +334,14 @@ Write-Output "OK"
 """
         result = subprocess.run(
             ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_script, target_id],
-            capture_output=True, text=True, timeout=15
+            capture_output=True, text=True, timeout=15,
+            encoding='utf-8', errors='replace'
         )
         if result.returncode == 0 and "OK" in result.stdout:
             print(f"Saída de áudio alterada para: {device_name}")
         else:
-            raise Exception(f"PolicyConfig falhou: {result.stderr.strip() or result.stdout.strip()}")
+            err = (result.stderr or result.stdout or 'erro desconhecido').strip()
+            raise Exception(f"PolicyConfig falhou: {err}")
 
     # ===== MÍDIA =====
 
