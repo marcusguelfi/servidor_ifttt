@@ -1,9 +1,9 @@
 #!/bin/sh
 
 # Instalar plugin no userDir /data se não estiver presente
-if [ ! -d /data/node_modules/node-red-contrib-alexa-home ]; then
-    echo "[entrypoint] Instalando node-red-contrib-alexa-home em /data..."
-    cd /data && npm install node-red-contrib-alexa-home@3.0.3
+if [ ! -d /data/node_modules/node-red-contrib-virtual-smart-home ]; then
+    echo "[entrypoint] Instalando node-red-contrib-virtual-smart-home em /data..."
+    cd /data && npm install node-red-contrib-virtual-smart-home
 fi
 
 # Copiar settings.js apenas se não existir (edições manuais são preservadas)

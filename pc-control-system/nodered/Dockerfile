@@ -2,7 +2,7 @@ FROM nodered/node-red:latest
 
 # Instalar plugin no diretório do Node-RED (não em /data que é VOLUME)
 WORKDIR /usr/src/node-red
-RUN npm install node-red-contrib-alexa-home@3.0.3
+RUN npm install node-red-contrib-virtual-smart-home
 
 # Copiar flows e settings para diretório temporário (não /data)
 COPY flows.json /tmp/defaults/flows.json
