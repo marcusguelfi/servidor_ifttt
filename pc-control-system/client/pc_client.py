@@ -46,12 +46,13 @@ class PCControlClient:
             return "127.0.0.1"
 
     def get_audio_devices(self):
-        """Lista dispositivos de áudio disponíveis"""
+        """Lista apenas dispositivos de áudio de saída ativos (state == DEVICE_STATE_ACTIVE)"""
         devices = []
         try:
             all_devices = AudioUtilities.GetAllDevices()
             for i, dev in enumerate(all_devices):
-                if dev.FriendlyName:
+                # state 1 = DEVICE_STATE_ACTIVE (conectado e funcionando)
+                if dev.FriendlyName and getattr(dev, 'state', 1) == 1:
                     devices.append({
                         "index": i,
                         "name": dev.FriendlyName,
