@@ -20,14 +20,14 @@ services:
       - pc-control-network
 
   ha-bridge:
-    image: bwssytems/ha-bridge:latest
+    build:
+      context: ./habridge
+      dockerfile: Dockerfile
     container_name: pc-control-habridge
     restart: unless-stopped
     network_mode: host
     volumes:
-      - habridge-data:/config
-    environment:
-      - TZ=America/Sao_Paulo
+      - habridge-data:/opt/habridge/data
 
 volumes:
   pc-control-data:
