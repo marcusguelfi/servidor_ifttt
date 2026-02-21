@@ -25,10 +25,15 @@ services:
       dockerfile: Dockerfile
     container_name: pc-control-nodered
     restart: unless-stopped
+    # host network é OBRIGATÓRIO para Alexa discovery via SSDP (multicast UDP 1900)
+    # com bridge network o multicast não funciona e a Alexa não encontra o dispositivo
     network_mode: host
     user: "0"
+    depends_on:
+      - pc-control-server
     environment:
       - TZ=America/Sao_Paulo
+      - NODE_RED_CREDENTIAL_SECRET=${NODE_RED_CREDENTIAL_SECRET:-pc-control-secret}
     volumes:
       - nodered-data:/data
 
