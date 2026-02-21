@@ -12,7 +12,8 @@
           "off_cmd": "http://localhost:3000/api/command/shutdown",
           "method": "POST",
           "headers": {"Content-Type": "application/json"},
-          "use_fake_state": true
+          "use_fake_state": true,
+          "initial_state": "off"
         },
         {
           "name": "PC Suspender",
@@ -21,7 +22,8 @@
           "off_cmd": "http://localhost:3000/api/command/sleep",
           "method": "POST",
           "headers": {"Content-Type": "application/json"},
-          "use_fake_state": true
+          "use_fake_state": true,
+          "initial_state": "off"
         },
         {
           "name": "Modo Cinema",
@@ -30,7 +32,8 @@
           "off_cmd": "http://localhost:3000/api/command/cinema-mode",
           "method": "POST",
           "headers": {"Content-Type": "application/json"},
-          "use_fake_state": true
+          "use_fake_state": true,
+          "initial_state": "off"
         },
         {
           "name": "Modo Console",
@@ -39,7 +42,8 @@
           "off_cmd": "http://localhost:3000/api/command/console-mode",
           "method": "POST",
           "headers": {"Content-Type": "application/json"},
-          "use_fake_state": true
+          "use_fake_state": true,
+          "initial_state": "off"
         },
         {
           "name": "Modo Retro",
@@ -48,7 +52,8 @@
           "off_cmd": "http://localhost:3000/api/command/retro-console",
           "method": "POST",
           "headers": {"Content-Type": "application/json"},
-          "use_fake_state": true
+          "use_fake_state": true,
+          "initial_state": "off"
         },
         {
           "name": "PC Mudo",
@@ -57,7 +62,8 @@
           "off_cmd": "http://localhost:3000/api/command/mute",
           "method": "POST",
           "headers": {"Content-Type": "application/json"},
-          "use_fake_state": true
+          "use_fake_state": true,
+          "initial_state": "off"
         },
         {
           "name": "Modo Noturno",
@@ -66,7 +72,8 @@
           "off_cmd": "http://localhost:3000/api/command/night-mode",
           "method": "POST",
           "headers": {"Content-Type": "application/json"},
-          "use_fake_state": true
+          "use_fake_state": true,
+          "initial_state": "off"
         },
         {
           "name": "PC Reiniciar",
@@ -75,7 +82,8 @@
           "off_cmd": "http://localhost:3000/api/command/restart",
           "method": "POST",
           "headers": {"Content-Type": "application/json"},
-          "use_fake_state": true
+          "use_fake_state": true,
+          "initial_state": "off"
         },
         {
           "name": "Monitor PC",
@@ -84,7 +92,8 @@
           "off_cmd": "http://localhost:3000/api/command/monitor-off",
           "method": "POST",
           "headers": {"Content-Type": "application/json"},
-          "use_fake_state": true
+          "use_fake_state": true,
+          "initial_state": "off"
         }
       ]
     }
