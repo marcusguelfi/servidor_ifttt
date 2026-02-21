@@ -25,7 +25,9 @@ services:
       dockerfile: Dockerfile
     container_name: pc-control-nodered
     restart: unless-stopped
-    network_mode: host
+    ports:
+      - "80:80"
+      - "1900:1900/udp"
     user: "0"
     environment:
       - TZ=America/Sao_Paulo
