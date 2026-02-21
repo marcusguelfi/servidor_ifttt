@@ -1,6 +1,7 @@
 module.exports = {
     flowFile: 'flows.json',
     uiPort: process.env.PORT || 1880,
+    uiHost: '0.0.0.0',
     credentialSecret: process.env.NODE_RED_CREDENTIAL_SECRET || "pc-control-secret",
     httpAdminRoot: '/',
     httpNodeRoot: '/',
