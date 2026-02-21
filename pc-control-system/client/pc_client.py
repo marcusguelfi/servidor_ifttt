@@ -12,11 +12,46 @@ import socket
 import uuid
 import ctypes
 import winreg
-from ctypes import cast, POINTER
-from comtypes import CLSCTX_ALL
+import comtypes
+from comtypes import CLSCTX_ALL, GUID, IUnknown, COMMETHOD
+from ctypes import cast, POINTER, HRESULT, c_uint, c_void_p, c_int, c_wchar_p
 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 import psutil
 import pyautogui
+
+# IPolicyConfig - Interface COM nativa do Windows para mudar dispositivo de áudio padrão
+# GUIDs: https://github.com/tartakynov/audioswitch/blob/master/IPolicyConfig.h
+class _IPolicyConfig(IUnknown):
+    _iid_ = GUID('{f8679f50-850a-41cf-9c72-430f290290c8}')
+    _methods_ = [
+        COMMETHOD([], HRESULT, 'GetMixFormat',
+                  (['in'], c_wchar_p), (['in'], c_void_p)),
+        COMMETHOD([], HRESULT, 'GetDeviceFormat',
+                  (['in'], c_wchar_p), (['in'], c_int), (['in'], c_void_p)),
+        COMMETHOD([], HRESULT, 'ResetDeviceFormat',
+                  (['in'], c_wchar_p)),
+        COMMETHOD([], HRESULT, 'SetDeviceFormat',
+                  (['in'], c_wchar_p), (['in'], c_void_p), (['in'], c_void_p)),
+        COMMETHOD([], HRESULT, 'GetProcessingPeriod',
+                  (['in'], c_wchar_p), (['in'], c_int), (['in'], c_void_p), (['in'], c_void_p)),
+        COMMETHOD([], HRESULT, 'SetProcessingPeriod',
+                  (['in'], c_wchar_p), (['in'], c_void_p)),
+        COMMETHOD([], HRESULT, 'GetShareMode',
+                  (['in'], c_wchar_p), (['in'], c_void_p)),
+        COMMETHOD([], HRESULT, 'SetShareMode',
+                  (['in'], c_wchar_p), (['in'], c_uint)),
+        COMMETHOD([], HRESULT, 'GetPropertyValue',
+                  (['in'], c_wchar_p), (['in'], c_int), (['in'], c_void_p), (['in'], c_void_p)),
+        COMMETHOD([], HRESULT, 'SetPropertyValue',
+                  (['in'], c_wchar_p), (['in'], c_int), (['in'], c_void_p), (['in'], c_void_p)),
+        COMMETHOD([], HRESULT, 'SetDefaultEndpoint',
+                  (['in'], c_wchar_p, 'wszDeviceId'), (['in'], c_uint, 'eRole')),
+        COMMETHOD([], HRESULT, 'SetEndpointVisibility',
+                  (['in'], c_wchar_p), (['in'], c_int)),
+    ]
+
+_CLSID_PolicyConfigClient = GUID('{870af99c-171d-4f9e-af0d-e63df40c2bc9}')
+
 
 # Configurações
 SERVER_URL = "ws://192.168.0.225:3000"
@@ -304,7 +339,7 @@ class PCControlClient:
         print(f"Audio {state}!")
 
     async def set_audio_output(self, device_name):
-        """Muda saída de áudio padrão via PolicyConfig COM API (sem dependências externas)"""
+        """Muda saída de áudio padrão via IPolicyConfig COM (nativo Python, sem PowerShell)"""
         print(f"Tentando mudar para: {device_name}")
 
         # Buscar apenas entre saídas ativas (igual ao que aparece na lista do web)
@@ -318,48 +353,17 @@ class PCControlClient:
         if not target_id:
             raise Exception(f"Dispositivo de áudio não encontrado: {device_name}")
 
-        # Mudar dispositivo padrão via PolicyConfig (COM interno do Windows, sem módulos extras)
-        ps_script = r"""
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-Add-Type -TypeDefinition @'
-using System;
-using System.Runtime.InteropServices;
-[Guid("F8679F50-850A-41CF-9C72-430F290290C8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-public interface IPolicyConfig {
-    void GetMixFormat(string s, IntPtr p);
-    void GetDeviceFormat(string s, bool b, IntPtr p);
-    void ResetDeviceFormat(string s);
-    void SetDeviceFormat(string s, IntPtr p1, IntPtr p2);
-    void GetProcessingPeriod(string s, bool b, out long l1, out long l2);
-    void SetProcessingPeriod(string s, ref long l);
-    void GetShareMode(string s, out uint m);
-    void SetShareMode(string s, uint m);
-    void GetPropertyValue(string s, bool b, IntPtr k, IntPtr v);
-    void SetPropertyValue(string s, bool b, IntPtr k, IntPtr v);
-    [PreserveSig] int SetDefaultEndpoint([MarshalAs(UnmanagedType.LPWStr)] string devId, uint role);
-    void SetEndpointVisibility(string s, bool v);
-}
-[ComImport, Guid("870AF99C-171D-4F9E-AF0D-E63DF40C2BC9")]
-public class PolicyConfigClient {}
-'@ -Language CSharp
-$devId = $args[0]
-$pc = New-Object PolicyConfigClient
-$ipc = [IPolicyConfig]$pc
-$ipc.SetDefaultEndpoint($devId, 0)
-$ipc.SetDefaultEndpoint($devId, 1)
-$ipc.SetDefaultEndpoint($devId, 2)
-Write-Output "OK"
-"""
-        result = subprocess.run(
-            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_script, target_id],
-            capture_output=True, text=True, timeout=15,
-            encoding='utf-8', errors='replace'
+        # Chamar IPolicyConfig diretamente via comtypes (sem PowerShell, ~10ms)
+        policy_config = comtypes.CoCreateInstance(
+            _CLSID_PolicyConfigClient,
+            _IPolicyConfig,
+            comtypes.CLSCTX_ALL
         )
-        if result.returncode == 0 and "OK" in result.stdout:
-            print(f"Saída de áudio alterada para: {device_name}")
-        else:
-            err = (result.stderr or result.stdout or 'erro desconhecido').strip()
-            raise Exception(f"PolicyConfig falhou: {err}")
+        # Definir como padrão para todas as roles: eConsole=0, eMultimedia=1, eCommunications=2
+        for role in range(3):
+            policy_config.SetDefaultEndpoint(target_id, role)
+
+        print(f"Saída de áudio alterada para: {device_name}")
 
     # ===== MÍDIA =====
 
