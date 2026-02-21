@@ -1,0 +1,92 @@
+{
+  "FAUXMO": {
+    "ip_address": "auto"
+  },
+  "PLUGINS": {
+    "SimpleHTTPPlugin": {
+      "DEVICES": [
+        {
+          "name": "PC Desligar",
+          "port": 12340,
+          "on_cmd": "http://localhost:3000/api/command/shutdown",
+          "off_cmd": "http://localhost:3000/api/command/shutdown",
+          "method": "POST",
+          "headers": {"Content-Type": "application/json"},
+          "use_fake_state": true
+        },
+        {
+          "name": "PC Suspender",
+          "port": 12341,
+          "on_cmd": "http://localhost:3000/api/command/sleep",
+          "off_cmd": "http://localhost:3000/api/command/sleep",
+          "method": "POST",
+          "headers": {"Content-Type": "application/json"},
+          "use_fake_state": true
+        },
+        {
+          "name": "Modo Cinema",
+          "port": 12342,
+          "on_cmd": "http://localhost:3000/api/command/cinema-mode",
+          "off_cmd": "http://localhost:3000/api/command/cinema-mode",
+          "method": "POST",
+          "headers": {"Content-Type": "application/json"},
+          "use_fake_state": true
+        },
+        {
+          "name": "Modo Console",
+          "port": 12343,
+          "on_cmd": "http://localhost:3000/api/command/console-mode",
+          "off_cmd": "http://localhost:3000/api/command/console-mode",
+          "method": "POST",
+          "headers": {"Content-Type": "application/json"},
+          "use_fake_state": true
+        },
+        {
+          "name": "Modo Retro",
+          "port": 12344,
+          "on_cmd": "http://localhost:3000/api/command/retro-console",
+          "off_cmd": "http://localhost:3000/api/command/retro-console",
+          "method": "POST",
+          "headers": {"Content-Type": "application/json"},
+          "use_fake_state": true
+        },
+        {
+          "name": "PC Mudo",
+          "port": 12345,
+          "on_cmd": "http://localhost:3000/api/command/mute",
+          "off_cmd": "http://localhost:3000/api/command/mute",
+          "method": "POST",
+          "headers": {"Content-Type": "application/json"},
+          "use_fake_state": true
+        },
+        {
+          "name": "Modo Noturno",
+          "port": 12346,
+          "on_cmd": "http://localhost:3000/api/command/night-mode",
+          "off_cmd": "http://localhost:3000/api/command/night-mode",
+          "method": "POST",
+          "headers": {"Content-Type": "application/json"},
+          "use_fake_state": true
+        },
+        {
+          "name": "PC Reiniciar",
+          "port": 12347,
+          "on_cmd": "http://localhost:3000/api/command/restart",
+          "off_cmd": "http://localhost:3000/api/command/restart",
+          "method": "POST",
+          "headers": {"Content-Type": "application/json"},
+          "use_fake_state": true
+        },
+        {
+          "name": "Monitor PC",
+          "port": 12348,
+          "on_cmd": "http://localhost:3000/api/command/monitor-off",
+          "off_cmd": "http://localhost:3000/api/command/monitor-off",
+          "method": "POST",
+          "headers": {"Content-Type": "application/json"},
+          "use_fake_state": true
+        }
+      ]
+    }
+  }
+}

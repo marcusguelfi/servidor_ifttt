@@ -1,8 +1,0 @@
-{
-    "name": "pc-control-nodered",
-    "description": "Node-RED flows para PC Control com Alexa",
-    "version": "1.0.0",
-    "dependencies": {
-        "node-red-contrib-alexa-local": "~0.5.0"
-    }
-}

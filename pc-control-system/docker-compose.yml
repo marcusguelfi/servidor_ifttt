@@ -19,19 +19,16 @@ services:
     networks:
       - pc-control-network
 
-  ha-bridge:
+  fauxmo:
     build:
-      context: ./habridge
+      context: ./fauxmo
       dockerfile: Dockerfile
-    container_name: pc-control-habridge
+    container_name: pc-control-fauxmo
     restart: unless-stopped
     network_mode: host
-    volumes:
-      - habridge-data:/opt/habridge/data
 
 volumes:
   pc-control-data:
-  habridge-data:
 
 networks:
   pc-control-network:
