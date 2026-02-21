@@ -264,51 +264,76 @@ class PCControlClient:
     # ===== ÁUDIO =====
 
     async def set_volume(self, volume):
-        try:
-            devices = AudioUtilities.GetSpeakers()
-            interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-            volume_control = cast(interface, POINTER(IAudioEndpointVolume))
-            volume_level = max(0, min(100, int(volume))) / 100.0
-            volume_control.SetMasterVolumeLevelScalar(volume_level, None)
-            print(f"Volume ajustado para {volume}%")
-        except Exception as e:
-            print(f"Erro ao ajustar volume: {e}")
+        devices = AudioUtilities.GetSpeakers()
+        interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+        volume_control = cast(interface, POINTER(IAudioEndpointVolume))
+        volume_level = max(0, min(100, int(volume))) / 100.0
+        volume_control.SetMasterVolumeLevelScalar(volume_level, None)
+        print(f"Volume ajustado para {volume}%")
 
     async def toggle_mute(self):
-        try:
-            devices = AudioUtilities.GetSpeakers()
-            interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-            volume_control = cast(interface, POINTER(IAudioEndpointVolume))
-            current_mute = volume_control.GetMute()
-            volume_control.SetMute(not current_mute, None)
-            state = "mutado" if not current_mute else "desmutado"
-            print(f"Audio {state}!")
-        except Exception as e:
-            print(f"Erro ao toggle mute: {e}")
+        devices = AudioUtilities.GetSpeakers()
+        interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+        volume_control = cast(interface, POINTER(IAudioEndpointVolume))
+        current_mute = volume_control.GetMute()
+        volume_control.SetMute(not current_mute, None)
+        state = "mutado" if not current_mute else "desmutado"
+        print(f"Audio {state}!")
 
     async def set_audio_output(self, device_name):
-        """Muda saída de áudio usando nircmd ou PowerShell"""
+        """Muda saída de áudio padrão via PolicyConfig COM API (sem dependências externas)"""
         print(f"Tentando mudar para: {device_name}")
 
-        # Tentar com nircmd primeiro
-        nircmd_path = os.path.join(os.path.dirname(__file__), "nircmd.exe")
-        if os.path.exists(nircmd_path):
-            cmd = f'"{nircmd_path}" setdefaultsounddevice "{device_name}"'
-            os.system(cmd)
-            print("Saida de audio alterada via nircmd!")
-            return
+        # Encontrar o device ID pelo nome usando pycaw
+        target_id = None
+        all_devices = AudioUtilities.GetAllDevices()
+        for dev in all_devices:
+            if dev.FriendlyName and device_name.lower() in dev.FriendlyName.lower():
+                target_id = dev.id
+                break
 
-        # Fallback: PowerShell com AudioDeviceCmdlets
-        try:
-            ps_cmd = f'powershell -Command "Get-AudioDevice -List | Where-Object {{$_.Name -like \'*{device_name}*\'}} | Set-AudioDevice"'
-            result = subprocess.run(ps_cmd, shell=True, capture_output=True, text=True)
-            if result.returncode == 0:
-                print("Saida de audio alterada via PowerShell!")
-            else:
-                print(f"PowerShell falhou: {result.stderr}")
-                print("Instale: Install-Module -Name AudioDeviceCmdlets")
-        except Exception as e:
-            print(f"Erro ao mudar audio: {e}")
+        if not target_id:
+            raise Exception(f"Dispositivo de áudio não encontrado: {device_name}")
+
+        # Mudar dispositivo padrão via PolicyConfig (COM interno do Windows, sem módulos extras)
+        ps_script = r"""
+Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+[Guid("F8679F50-850A-41CF-9C72-430F290290C8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+public interface IPolicyConfig {
+    void GetMixFormat(string s, IntPtr p);
+    void GetDeviceFormat(string s, bool b, IntPtr p);
+    void ResetDeviceFormat(string s);
+    void SetDeviceFormat(string s, IntPtr p1, IntPtr p2);
+    void GetProcessingPeriod(string s, bool b, out long l1, out long l2);
+    void SetProcessingPeriod(string s, ref long l);
+    void GetShareMode(string s, out uint m);
+    void SetShareMode(string s, uint m);
+    void GetPropertyValue(string s, bool b, IntPtr k, IntPtr v);
+    void SetPropertyValue(string s, bool b, IntPtr k, IntPtr v);
+    [PreserveSig] int SetDefaultEndpoint([MarshalAs(UnmanagedType.LPWStr)] string devId, uint role);
+    void SetEndpointVisibility(string s, bool v);
+}
+[ComImport, Guid("870AF99C-171D-4F9E-AF0D-E63DF40C2BC9")]
+public class PolicyConfigClient {}
+'@ -Language CSharp
+$devId = $args[0]
+$pc = New-Object PolicyConfigClient
+$ipc = [IPolicyConfig]$pc
+$ipc.SetDefaultEndpoint($devId, 0)
+$ipc.SetDefaultEndpoint($devId, 1)
+$ipc.SetDefaultEndpoint($devId, 2)
+Write-Output "OK"
+"""
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_script, target_id],
+            capture_output=True, text=True, timeout=15
+        )
+        if result.returncode == 0 and "OK" in result.stdout:
+            print(f"Saída de áudio alterada para: {device_name}")
+        else:
+            raise Exception(f"PolicyConfig falhou: {result.stderr.strip() or result.stdout.strip()}")
 
     # ===== MÍDIA =====
 

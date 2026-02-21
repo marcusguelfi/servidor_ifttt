@@ -381,8 +381,7 @@
             <div class="volume-row">
                 <button class="media-btn" onclick="cmd('mute')" title="Mute">&#x1F507;</button>
                 <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="50"
-                       oninput="document.getElementById('volumeVal').textContent=this.value+'%'"
-                       onchange="cmd('set-volume', {volume: parseInt(this.value)})">
+                       oninput="updateVolDisplay(this.value)">
                 <span class="volume-value" id="volumeVal">50%</span>
             </div>
             <div class="volume-presets">
@@ -491,6 +490,13 @@
             } catch (e) {
                 toast('Erro de conexao', true);
             }
+        }
+
+        let volDebounce = null;
+        function updateVolDisplay(v) {
+            document.getElementById('volumeVal').textContent = v + '%';
+            clearTimeout(volDebounce);
+            volDebounce = setTimeout(() => cmd('set-volume', { volume: parseInt(v) }), 300);
         }
 
         function setVol(v) {

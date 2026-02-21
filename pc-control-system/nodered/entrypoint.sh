@@ -8,10 +8,10 @@ if [ ! -f /data/settings.js ]; then
 fi
 
 # Instalar plugin no userDir /data para garantir que Node-RED encontre todos os nós
-cd /data
 if [ ! -d /data/node_modules/node-red-contrib-alexa-home ]; then
-    npm install node-red-contrib-alexa-home@3.0.3
+    cd /data && npm install node-red-contrib-alexa-home@3.0.3
 fi
 
-# Iniciar Node-RED
+# Iniciar Node-RED a partir do diretório de instalação (não de /data)
+cd /usr/src/node-red
 exec npm start -- --userDir /data
