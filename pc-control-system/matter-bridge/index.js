@@ -5,6 +5,7 @@ import { Environment, ServerNode, Endpoint, VendorId } from "@matter/main";
 import { AggregatorEndpoint } from "@matter/main/endpoints/aggregator";
 import { OnOffPlugInUnitDevice } from "@matter/main/devices/on-off-plug-in-unit";
 import { DimmablePlugInUnitDevice } from "@matter/main/devices/dimmable-plug-in-unit";
+import { BridgedDeviceBasicInformationServer } from "@matter/main/behaviors/bridged-device-basic-information";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -61,8 +62,13 @@ async function main() {
         const id = `device-${index}`;
 
         if (device.type === "dimmer") {
-            const ep = new Endpoint(DimmablePlugInUnitDevice, {
+            const ep = new Endpoint(DimmablePlugInUnitDevice.with(BridgedDeviceBasicInformationServer), {
                 id,
+                bridgedDeviceBasicInformation: {
+                    nodeLabel: device.name,
+                    reachable: true,
+                    uniqueId: `${id}-unique`,
+                },
                 onOff: { onOff: false },
                 levelControl: { currentLevel: 127, minLevel: 1, maxLevel: 254 },
             });
@@ -81,8 +87,13 @@ async function main() {
                 await callApi("set-volume", { volume });
             });
         } else {
-            const ep = new Endpoint(OnOffPlugInUnitDevice, {
+            const ep = new Endpoint(OnOffPlugInUnitDevice.with(BridgedDeviceBasicInformationServer), {
                 id,
+                bridgedDeviceBasicInformation: {
+                    nodeLabel: device.name,
+                    reachable: true,
+                    uniqueId: `${id}-unique`,
+                },
                 onOff: { onOff: false },
             });
             await aggregator.add(ep);
