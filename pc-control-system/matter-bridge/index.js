@@ -1,5 +1,5 @@
 // Must be first: register Node.js platform (crypto, storage, network)
-import "@matter/main/register";
+import "@matter/main/platform";
 
 import { Environment, ServerNode, Endpoint, VendorId } from "@matter/main";
 import { AggregatorEndpoint } from "@matter/main/endpoints/aggregator";
