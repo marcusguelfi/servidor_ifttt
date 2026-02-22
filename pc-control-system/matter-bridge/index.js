@@ -4,7 +4,7 @@ import "@matter/main/platform";
 import { Environment, ServerNode, Endpoint, VendorId } from "@matter/main";
 import { AggregatorEndpoint } from "@matter/main/endpoints/aggregator";
 import { OnOffPlugInUnitDevice } from "@matter/main/devices/on-off-plug-in-unit";
-import { DimmablePlugInUnitDevice } from "@matter/main/devices/dimmable-plug-in-unit";
+import { DimmableLightDevice } from "@matter/main/devices/dimmable-light";
 import { BridgedDeviceBasicInformationServer } from "@matter/main/behaviors/bridged-device-basic-information";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -62,7 +62,7 @@ async function main() {
         const id = `device-${index}`;
 
         if (device.type === "dimmer") {
-            const ep = new Endpoint(DimmablePlugInUnitDevice.with(BridgedDeviceBasicInformationServer), {
+            const ep = new Endpoint(DimmableLightDevice.with(BridgedDeviceBasicInformationServer), {
                 id,
                 bridgedDeviceBasicInformation: {
                     nodeLabel: device.name,
@@ -100,7 +100,7 @@ async function main() {
 
             ep.events.onOff.onOff$Changed.on(async (value) => {
                 console.log(`[${device.name}] ${value ? "ON" : "OFF"}`);
-                if (value) await callApi(device.command);
+                if (value) await callApi(device.command, device.params ?? {});
             });
         }
 

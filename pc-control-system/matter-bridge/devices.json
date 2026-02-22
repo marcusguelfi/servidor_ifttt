@@ -11,5 +11,8 @@
   { "name": "PC Mudo",                "command": "mute" },
   { "name": "Cancelar Desligamento",  "command": "cancel-shutdown" },
   { "name": "Media Play Pausa",       "command": "media-play-pause" },
-  { "name": "Volume PC",              "command": "set-volume", "type": "dimmer" }
+  { "name": "Volume PC",              "command": "set-volume", "type": "dimmer" },
+  { "name": "PC Dizer Boa Noite",     "command": "tts", "params": { "text": "Boa noite!" } },
+  { "name": "PC Dizer Bom Dia",       "command": "tts", "params": { "text": "Bom dia!" } },
+  { "name": "PC Dizer Olá",           "command": "tts", "params": { "text": "Olá, como posso ajudar?" } }
 ]
