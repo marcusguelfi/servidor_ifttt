@@ -99,8 +99,19 @@ async function main() {
             await aggregator.add(ep);
 
             ep.events.onOff.onOff$Changed.on(async (value) => {
-                console.log(`[${device.name}] ${value ? "ON" : "OFF"}`);
-                if (value) await callApi(device.command, device.params ?? {});
+                console.log(`[${device.name}] ${value ? "ON → acionando" : "OFF"}`);
+                if (value) {
+                    await callApi(device.command, device.params ?? {});
+                    // Auto-reset: volta para OFF após 1.5s para permitir re-acionamento
+                    setTimeout(async () => {
+                        try {
+                            await ep.set({ onOff: { onOff: false } });
+                            console.log(`[${device.name}] reset → OFF`);
+                        } catch (err) {
+                            console.error(`[${device.name}] Erro no reset: ${err.message}`);
+                        }
+                    }, 1500);
+                }
             });
         }
 
