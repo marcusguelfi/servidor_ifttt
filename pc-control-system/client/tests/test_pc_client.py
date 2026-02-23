@@ -194,3 +194,91 @@ async def test_deve_deletar_arquivo_temp_apos_tts(client):
          patch('tempfile.mktemp', return_value='/tmp/test.mp3'):
         await client.text_to_speech('teste')
         mock_unlink.assert_called_once_with('/tmp/test.mp3')
+
+
+# ─────────────────────────────────────────────
+# Fullscreen — dois comandos
+# ─────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_deve_pressionar_f_quando_video_fullscreen(client):
+    with patch('pyautogui.press') as mock_press:
+        await client.handle_command('video-fullscreen', {})
+        mock_press.assert_called_once_with('f')
+
+
+@pytest.mark.asyncio
+async def test_deve_pressionar_f11_quando_fullscreen_janela(client):
+    with patch('pyautogui.press') as mock_press:
+        await client.handle_command('fullscreen', {})
+        mock_press.assert_called_once_with('f11')
+
+
+# ─────────────────────────────────────────────
+# Fix VGA: DisplaySwitch /external
+# ─────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_deve_chamar_displayswitch_external_quando_cinema_mode(client):
+    with patch('subprocess.Popen') as mock_popen, \
+         patch('pyautogui.press'), \
+         patch('pc_client.PCControlClient._find_window_by_title', return_value=None), \
+         patch('pc_client.PCControlClient.set_volume', new_callable=AsyncMock):
+        await client.cinema_mode()
+        calls = [str(c) for c in mock_popen.call_args_list]
+        assert any('/external' in c for c in calls), \
+            f"cinema_mode deve usar /external, mas chamou: {calls}"
+
+
+@pytest.mark.asyncio
+async def test_nao_deve_chamar_displayswitch_internal_no_cinema_mode(client):
+    with patch('subprocess.Popen') as mock_popen, \
+         patch('pyautogui.press'), \
+         patch('pc_client.PCControlClient._find_window_by_title', return_value=None), \
+         patch('pc_client.PCControlClient.set_volume', new_callable=AsyncMock):
+        await client.cinema_mode()
+        calls = [str(c) for c in mock_popen.call_args_list]
+        assert not any('/internal' in c for c in calls), \
+            f"/internal não deve ser usado no cinema_mode (manteria VGA ligado)"
+
+
+@pytest.mark.asyncio
+async def test_deve_chamar_displayswitch_external_quando_night_mode(client):
+    with patch('subprocess.Popen') as mock_popen, \
+         patch('pc_client.PCControlClient.set_volume', new_callable=AsyncMock), \
+         patch('pc_client.PCControlClient._set_night_light'):
+        await client.night_mode()
+        calls = [str(c) for c in mock_popen.call_args_list]
+        assert any('/external' in c for c in calls), \
+            f"night_mode deve usar /external, mas chamou: {calls}"
+
+
+@pytest.mark.asyncio
+async def test_deve_chamar_displayswitch_extend_quando_dual_monitor(client):
+    with patch('subprocess.Popen') as mock_popen:
+        await client.dual_monitor()
+        mock_popen.assert_called_once_with(["DisplaySwitch.exe", "/extend"])
+
+
+# ─────────────────────────────────────────────
+# claude-yes
+# ─────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_deve_pressionar_enter_quando_claude_yes(client):
+    with patch('pyautogui.press') as mock_press, \
+         patch('pc_client.PCControlClient._find_window_by_title', return_value=None):
+        await client.handle_command('claude-yes', {})
+        mock_press.assert_called_with('enter')
+
+
+@pytest.mark.asyncio
+async def test_deve_buscar_janela_claude_antes_do_enter(client):
+    mock_hwnd = 12345
+    with patch('pyautogui.press'), \
+         patch('ctypes.windll.user32.ShowWindow'), \
+         patch('ctypes.windll.user32.SetForegroundWindow'), \
+         patch('pc_client.PCControlClient._find_window_by_title',
+               return_value=mock_hwnd) as mock_find:
+        await client.handle_command('claude-yes', {})
+        mock_find.assert_called()  # deve ter tentado encontrar janela

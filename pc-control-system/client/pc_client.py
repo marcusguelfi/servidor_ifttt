@@ -226,6 +226,11 @@ class PCControlClient:
             elif command == 'fullscreen':
                 pyautogui.press('f11')
                 print("Fullscreen alternado!")
+            elif command == 'video-fullscreen':
+                pyautogui.press('f')
+                print("Video fullscreen alternado!")
+            elif command == 'claude-yes':
+                await self.claude_yes()
             elif command == 'mouse-move':
                 pyautogui.moveRel(int(params.get('dx', 0)), int(params.get('dy', 0)), duration=0)
             elif command == 'mouse-click':
@@ -336,8 +341,9 @@ class PCControlClient:
         pyautogui.press('f11')
         await asyncio.sleep(0.5)
 
-        # Desativar monitor Philips (secundário) — mantém apenas o display primário
-        subprocess.Popen(["DisplaySwitch.exe", "/internal"])
+        # Manter apenas TV/HDMI — /external = segundo monitor detectado pelo hardware (TV)
+        # /internal manteria o VGA (primeiro detectado), ignorando configuração de "primário" do Windows
+        subprocess.Popen(["DisplaySwitch.exe", "/external"])
 
         # Volume confortável
         await self.set_volume(40)
@@ -376,13 +382,25 @@ class PCControlClient:
         print("Ativando night mode...")
         await self.set_volume(15)
         self._set_night_light(True)
-        subprocess.Popen(["DisplaySwitch.exe", "/internal"])
+        subprocess.Popen(["DisplaySwitch.exe", "/external"])
         print("Night mode ativado!")
 
     async def dual_monitor(self):
         print("Ativando duplo monitor...")
         subprocess.Popen(["DisplaySwitch.exe", "/extend"])
         print("Modo estendido ativado!")
+
+    async def claude_yes(self):
+        """Traz terminal com Claude para frente e pressiona Enter para confirmar prompts"""
+        for title in ["Claude", "Windows Terminal", "cmd"]:
+            hwnd = self._find_window_by_title(title)
+            if hwnd:
+                ctypes.windll.user32.ShowWindow(hwnd, 9)   # SW_RESTORE
+                ctypes.windll.user32.SetForegroundWindow(hwnd)
+                await asyncio.sleep(0.3)
+                break
+        pyautogui.press('enter')
+        print("Enter enviado ao terminal!")
 
     def _set_night_light(self, enable: bool):
         """Liga/desliga Luz Noturna do Windows (Night Light) via registro"""

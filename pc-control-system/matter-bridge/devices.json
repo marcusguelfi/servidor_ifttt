@@ -15,5 +15,6 @@
   { "name": "Alterar para fone",         "command": "set-audio-device", "params": { "device": "G435" } },
   { "name": "Alterar para alto-falante",            "command": "set-audio-device", "params": { "device": "Echo Pop" } },
   { "name": "Alterar para monitor",         "command": "set-audio-device", "params": { "device": "NVIDIA" } },
-  { "name": "Volume do PC",          "command": "set-volume", "type": "dimmer" }
+  { "name": "Volume do PC",          "command": "set-volume", "type": "dimmer" },
+  { "name": "Dizer sim ao Claude",   "command": "claude-yes" }
 ]

@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# Node.js
+node_modules/
+npm-debug.log*
+package-lock.json
+
+# Segurança — nunca commitar credenciais
+.env
+.env.*
+*.env
+secrets.*
+credentials.*
+config.local.*
+
+# Matter bridge — dados de comissionamento vinculados ao hardware local
+pc-control-system/matter-bridge/data/
+
+# Editores e SO
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Claude Code (settings locais da máquina)
+.claude/
+
+# Skills empacotadas (binário gerado — não versionar)
+*.skill

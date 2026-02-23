@@ -4,6 +4,70 @@ Histórico de features implementadas e suas decisões técnicas.
 
 ---
 
+## Feature: Fullscreen split + Fix VGA cinema + Claude-yes + .gitignore
+**Status:** implementada
+**Data:** 2026-02-23
+**Arquivos:**
+- `pc-control-system/client/pc_client.py`
+- `pc-control-system/web/index.html`
+- `pc-control-system/matter-bridge/devices.json`
+- `pc-control-system/client/tests/test_pc_client.py`
+- `.gitignore`
+
+### O que faz
+Separa fullscreen em dois comandos (F para vídeo, F11 para janela), corrige bug onde modo cinema mantinha o monitor VGA ligado, adiciona comando "Dizer sim ao Claude" para confirmar prompts via Alexa, e cria `.gitignore` com regras de segurança.
+
+### Interface
+
+**Fullscreen split (pc_client.py + web):**
+```python
+'fullscreen'       → pyautogui.press('f11')   # fullscreen da janela/aba (Brave)
+'video-fullscreen' → pyautogui.press('f')      # fullscreen do player (YouTube/Netflix)
+```
+```html
+<!-- web/index.html — seção Modos -->
+<button onclick="cmd('fullscreen')">Tela Cheia</button>
+<button onclick="cmd('video-fullscreen')">Vídeo Full</button>
+```
+
+**Fix VGA cinema/night (pc_client.py):**
+```python
+# cinema_mode e night_mode:
+subprocess.Popen(["DisplaySwitch.exe", "/external"])
+# era /internal — mantinha VGA (primeiro monitor detectado pelo hardware)
+```
+
+**Claude-yes (pc_client.py):**
+```python
+await client.handle_command('claude-yes', {})
+# Busca janela "Claude"/"Windows Terminal"/"cmd", traz para frente, pressiona Enter
+```
+
+**devices.json:**
+```json
+{ "name": "Dizer sim ao Claude", "command": "claude-yes" }
+```
+
+### Testes
+- `test_deve_pressionar_f_quando_video_fullscreen` — F pressionado para video-fullscreen
+- `test_deve_pressionar_f11_quando_fullscreen_janela` — F11 mantido para fullscreen
+- `test_deve_chamar_displayswitch_external_quando_cinema_mode` — /external no cinema
+- `test_nao_deve_chamar_displayswitch_internal_no_cinema_mode` — /internal não aparece
+- `test_deve_chamar_displayswitch_external_quando_night_mode` — /external no night
+- `test_deve_chamar_displayswitch_extend_quando_dual_monitor` — /extend inalterado
+- `test_deve_pressionar_enter_quando_claude_yes` — Enter enviado
+- `test_deve_buscar_janela_claude_antes_do_enter` — _find_window_by_title chamado
+
+### Decisões técnicas
+- Escolhemos `DisplaySwitch /external` em vez de `/internal` porque em desktop (sem tela nativa), `/internal` mantém o primeiro monitor detectado pelo hardware (VGA, porta física), ignorando a configuração de "primário" do Windows; `/external` mantém o segundo detectado (TV/HDMI)
+- Escolhemos buscar por título de janela em vez de processo porque o Claude Code roda dentro do Windows Terminal — o processo-pai é `WindowsTerminal.exe`, não `claude.exe`
+
+### Próximos passos
+- [ ] Feedback visual na web ao ativar modo cinema (ícone ativo)
+- [ ] Testar "Dizer sim ao Claude" via Alexa com frase exata em PT-BR
+
+---
+
 ## Feature: Fix mouse-move / audio-buttons / TTS
 **Status:** implementada
 **Data:** 2026-02-23
