@@ -9,11 +9,11 @@
   { "name": "Modo Console",          "command": "console-mode" },
   { "name": "Modo Retro",            "command": "retro-console" },
   { "name": "Modo Noturno",          "command": "night-mode" },
-  { "name": "Duplo Monitor",         "command": "dual-monitor" },
+  { "name": "Ativar Segundo monitor",         "command": "dual-monitor" },
   { "name": "Mutar PC",              "command": "mute" },
-  { "name": "Play Pausa",            "command": "media-play-pause" },
-  { "name": "Audio Headset",         "command": "set-audio-device", "params": { "device": "G435" } },
-  { "name": "Audio Echo",            "command": "set-audio-device", "params": { "device": "Echo Pop" } },
-  { "name": "Audio Monitor",         "command": "set-audio-device", "params": { "device": "NVIDIA" } },
+  { "name": "Play PC",            "command": "media-play-pause" },
+  { "name": "Alterar para fone",         "command": "set-audio-device", "params": { "device": "G435" } },
+  { "name": "Alterar para alto-falante",            "command": "set-audio-device", "params": { "device": "Echo Pop" } },
+  { "name": "Alterar para monitor",         "command": "set-audio-device", "params": { "device": "NVIDIA" } },
   { "name": "Volume do PC",          "command": "set-volume", "type": "dimmer" }
 ]
