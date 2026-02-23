@@ -177,10 +177,10 @@ class PCControlClient:
                 await self.set_volume(params.get('volume', 50))
             elif command == 'mute':
                 await self.toggle_mute()
-            elif command == 'audio-output':
-                await self.set_audio_output(params.get('device'))
             elif command == 'set-audio-device':
                 await self.set_audio_output(params.get('device'))
+            elif command == 'dual-monitor':
+                await self.dual_monitor()
             elif command == 'open-app':
                 await self.open_application(params.get('app'))
             elif command == 'lock-pc':
@@ -343,7 +343,13 @@ class PCControlClient:
         print("Ativando night mode...")
         await self.set_volume(15)
         self._set_night_light(True)
+        subprocess.Popen(["DisplaySwitch.exe", "/internal"])
         print("Night mode ativado!")
+
+    async def dual_monitor(self):
+        print("Ativando duplo monitor...")
+        subprocess.Popen(["DisplaySwitch.exe", "/extend"])
+        print("Modo estendido ativado!")
 
     def _set_night_light(self, enable: bool):
         """Liga/desliga Luz Noturna do Windows (Night Light) via registro"""

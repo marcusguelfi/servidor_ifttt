@@ -9,6 +9,7 @@
   { "name": "Modo Console",          "command": "console-mode" },
   { "name": "Modo Retro",            "command": "retro-console" },
   { "name": "Modo Noturno",          "command": "night-mode" },
+  { "name": "Duplo Monitor",         "command": "dual-monitor" },
   { "name": "Mutar PC",              "command": "mute" },
   { "name": "Play Pausa",            "command": "media-play-pause" },
   { "name": "Audio Headset",         "command": "set-audio-device", "params": { "device": "G435" } },
