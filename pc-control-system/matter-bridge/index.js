@@ -70,7 +70,7 @@ async function main() {
                     uniqueId: `${id}-unique`,
                 },
                 onOff: { onOff: true },
-                levelControl: { currentLevel: 127, minLevel: 0, maxLevel: 254 },
+                levelControl: { currentLevel: 127, minLevel: 1, maxLevel: 254 },
             });
             await aggregator.add(ep);
 
