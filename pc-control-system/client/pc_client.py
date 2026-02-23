@@ -110,15 +110,33 @@ class PCControlClient:
         try:
             cpu = psutil.cpu_percent(interval=0)
             ram = psutil.virtual_memory()
-            disk = psutil.disk_usage('C:\\')
+
+            disks = []
+            for part in psutil.disk_partitions(all=False):
+                if not part.fstype or 'cdrom' in part.opts:
+                    continue
+                try:
+                    usage = psutil.disk_usage(part.mountpoint)
+                    disks.append({
+                        "mount": part.mountpoint,
+                        "percent": usage.percent,
+                        "used_gb": round(usage.used / (1024**3), 1),
+                        "total_gb": round(usage.total / (1024**3), 1),
+                    })
+                except Exception:
+                    continue
+
+            # Campos legados (primeiro disco) para retrocompatibilidade
+            first = disks[0] if disks else {"percent": 0, "used_gb": 0, "total_gb": 0}
             return {
                 "cpu": cpu,
                 "ram_percent": ram.percent,
                 "ram_used_gb": round(ram.used / (1024**3), 1),
                 "ram_total_gb": round(ram.total / (1024**3), 1),
-                "disk_percent": disk.percent,
-                "disk_used_gb": round(disk.used / (1024**3), 1),
-                "disk_total_gb": round(disk.total / (1024**3), 1)
+                "disk_percent": first["percent"],
+                "disk_used_gb": first["used_gb"],
+                "disk_total_gb": first["total_gb"],
+                "disks": disks,
             }
         except Exception as e:
             print(f"Erro ao obter system info: {e}")
@@ -199,6 +217,15 @@ class PCControlClient:
                 await self.text_to_speech(params.get('text', ''))
             elif command == 'notification':
                 await self.show_notification(params.get('message', 'Notificação'))
+            elif command == 'fullscreen':
+                pyautogui.press('f11')
+                print("Fullscreen alternado!")
+            elif command == 'mouse-move':
+                pyautogui.moveRel(int(params.get('dx', 0)), int(params.get('dy', 0)), duration=0)
+            elif command == 'mouse-click':
+                pyautogui.click(button=params.get('button', 'left'))
+            elif command == 'mouse-scroll':
+                pyautogui.scroll(int(params.get('delta', 3)))
             else:
                 print(f"  Comando desconhecido: {command}")
                 success = False

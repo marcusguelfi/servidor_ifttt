@@ -56,7 +56,7 @@
         /* System Info Bar */
         .sysinfo {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
             gap: 10px;
             margin-bottom: 20px;
         }
@@ -92,7 +92,7 @@
             grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
             gap: 8px;
         }
-        .btn-grid.wide { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+        .btn-grid.wide { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
 
         .btn {
             background: var(--surface2);
@@ -171,33 +171,6 @@
         }
         .vol-btn:hover { background: var(--accent); border-color: var(--accent); }
 
-        /* Audio Devices */
-        .audio-row {
-            display: flex;
-            gap: 8px;
-        }
-        .audio-select {
-            flex: 1;
-            background: var(--surface2);
-            color: var(--text);
-            border: 1px solid var(--border);
-            padding: 10px 12px;
-            border-radius: 8px;
-            font-size: 0.9em;
-        }
-        .audio-select option { background: var(--surface2); }
-        .audio-apply {
-            background: var(--accent);
-            color: #fff;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: background 0.2s;
-        }
-        .audio-apply:hover { background: var(--accent-hover); }
-
         /* Media Controls */
         .media-row {
             display: flex;
@@ -219,6 +192,36 @@
         }
         .media-btn:hover { background: var(--accent); border-color: var(--accent); }
         .media-btn.play { width: 64px; height: 64px; font-size: 1.6em; }
+
+        /* Touchpad */
+        .touchpad {
+            width: 100%;
+            height: 180px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            cursor: crosshair;
+            touch-action: none;
+            user-select: none;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-dim);
+            font-size: 0.85em;
+        }
+        .touchpad:active { border-color: var(--accent); }
+        .mouse-btns {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .mouse-hint {
+            text-align: center;
+            font-size: 0.72em;
+            color: var(--text-dim);
+        }
 
         /* TTS */
         .tts-row {
@@ -290,6 +293,18 @@
             grid-template-columns: repeat(4, 1fr);
             gap: 8px;
         }
+
+        /* Mobile */
+        @media (max-width: 480px) {
+            body { padding: 10px; }
+            .btn-grid.wide { grid-template-columns: repeat(2, 1fr); }
+            .timer-grid { grid-template-columns: repeat(2, 1fr); }
+            .volume-presets { grid-template-columns: repeat(3, 1fr); }
+            .mouse-btns { grid-template-columns: repeat(2, 1fr); }
+            .media-btn { width: 52px; height: 52px; font-size: 1.3em; }
+            .media-btn.play { width: 60px; height: 60px; }
+            .header h1 { font-size: 1.3em; }
+        }
     </style>
 </head>
 <body>
@@ -316,11 +331,8 @@
                 <div class="value" id="ramVal">-</div>
                 <div class="detail" id="ramDetail"></div>
             </div>
-            <div class="sysinfo-card">
-                <div class="label">Disco</div>
-                <div class="value" id="diskVal">-</div>
-                <div class="detail" id="diskDetail"></div>
-            </div>
+            <!-- Disco(s) renderizados dinamicamente via JS -->
+            <div id="diskCards"></div>
         </div>
 
         <!-- Sistema -->
@@ -372,6 +384,12 @@
                 <button class="btn" onclick="cmd('night-mode')">
                     <span class="icon">&#x1F319;</span> Night
                 </button>
+                <button class="btn" onclick="cmd('dual-monitor')">
+                    <span class="icon">&#x1F5A5;</span> 2 Telas
+                </button>
+                <button class="btn" onclick="cmd('fullscreen')">
+                    <span class="icon">&#x26F6;</span> Tela Cheia
+                </button>
             </div>
         </div>
 
@@ -394,18 +412,28 @@
             </div>
         </div>
 
-        <!-- Audio Devices -->
+        <!-- Audio Devices — botões dinâmicos -->
         <div class="section" id="audioSection" style="display:none">
-            <div class="section-title">Saida de Audio</div>
-            <div class="audio-row">
-                <select class="audio-select" id="audioDeviceSelect"></select>
-                <button class="audio-apply" onclick="switchAudio()">Trocar</button>
+            <div class="section-title">Sa&#xED;da de &#xC1;udio</div>
+            <div class="btn-grid audio-btns"></div>
+        </div>
+
+        <!-- Mouse / Touchpad -->
+        <div class="section">
+            <div class="section-title">Mouse</div>
+            <div id="touchpad" class="touchpad">Arraste para mover o mouse</div>
+            <div class="mouse-btns">
+                <button class="btn" onclick="mouseClick('left')">&#x1F5B1; Clique</button>
+                <button class="btn" onclick="mouseScroll(3)">&#x2B06; Scroll</button>
+                <button class="btn" onclick="mouseScroll(-3)">&#x2B07; Scroll</button>
+                <button class="btn" onclick="mouseClick('right')">Direito</button>
             </div>
+            <div class="mouse-hint">Tap r&#xE1;pido no touchpad = clique esquerdo</div>
         </div>
 
         <!-- Media Controls -->
         <div class="section">
-            <div class="section-title">Midia</div>
+            <div class="section-title">M&#xED;dia</div>
             <div class="media-row">
                 <button class="media-btn" onclick="cmd('media-prev')">&#x23EE;</button>
                 <button class="media-btn play" onclick="cmd('media-play-pause')">&#x23EF;</button>
@@ -466,22 +494,16 @@
 
         async function cmd(command, params = {}) {
             try {
-                let url, body;
-                if (currentMAC) {
-                    url = `${API}/api/webhook/${currentMAC}/${command}`;
-                    body = params;
-                } else {
-                    url = `${API}/api/command/${command}`;
-                    body = params;
-                }
+                const url = currentMAC
+                    ? `${API}/api/webhook/${currentMAC}/${command}`
+                    : `${API}/api/command/${command}`;
 
                 const res = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
+                    body: JSON.stringify(params)
                 });
                 const data = await res.json();
-
                 if (data.success) {
                     toast(`${command} enviado`);
                 } else {
@@ -505,12 +527,6 @@
             cmd('set-volume', { volume: v });
         }
 
-        function switchAudio() {
-            const sel = document.getElementById('audioDeviceSelect');
-            const device = sel.value;
-            if (device) cmd('set-audio-device', { device });
-        }
-
         function sendTTS() {
             const input = document.getElementById('ttsInput');
             const text = input.value.trim();
@@ -520,6 +536,62 @@
             }
         }
 
+        // ===== Mouse / Touchpad =====
+
+        const SENSITIVITY = 1.8;
+        const SEND_MS = 30;
+
+        let ptX = null, ptY = null, sendTimer = null;
+        let pendingDX = 0, pendingDY = 0;
+        let tapStart = null, tapMoved = false;
+
+        function flushMove() {
+            if (pendingDX || pendingDY) {
+                const url = currentMAC
+                    ? `${API}/api/webhook/${currentMAC}/mouse-move`
+                    : `${API}/api/command/mouse-move`;
+                fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dx: Math.round(pendingDX), dy: Math.round(pendingDY) })
+                }).catch(() => {});
+                pendingDX = pendingDY = 0;
+            }
+            sendTimer = null;
+        }
+
+        const touchpad = document.getElementById('touchpad');
+
+        touchpad.addEventListener('pointerdown', e => {
+            touchpad.setPointerCapture(e.pointerId);
+            ptX = e.clientX; ptY = e.clientY;
+            tapStart = Date.now();
+            tapMoved = false;
+            e.preventDefault();
+        });
+
+        touchpad.addEventListener('pointermove', e => {
+            if (ptX === null) return;
+            const dx = (e.clientX - ptX) * SENSITIVITY;
+            const dy = (e.clientY - ptY) * SENSITIVITY;
+            ptX = e.clientX; ptY = e.clientY;
+            if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) tapMoved = true;
+            pendingDX += dx;
+            pendingDY += dy;
+            if (!sendTimer) sendTimer = setTimeout(flushMove, SEND_MS);
+            e.preventDefault();
+        });
+
+        touchpad.addEventListener('pointerup', () => {
+            if (!tapMoved && Date.now() - tapStart < 200) mouseClick('left');
+            ptX = ptY = null;
+        });
+
+        touchpad.addEventListener('pointercancel', () => { ptX = ptY = null; });
+
+        function mouseClick(btn) { cmd('mouse-click', { button: btn }); }
+        function mouseScroll(d)   { cmd('mouse-scroll', { delta: d }); }
+
         // ===== Data Loading =====
 
         async function loadPCs() {
@@ -527,7 +599,7 @@
                 const res = await fetch(`${API}/api/pcs`);
                 const pcs = await res.json();
 
-                const dot = document.getElementById('statusDot');
+                const dot  = document.getElementById('statusDot');
                 const text = document.getElementById('statusText');
                 const name = document.getElementById('pcName');
 
@@ -554,21 +626,37 @@
         async function loadSystemInfo() {
             if (!currentMAC) return;
             try {
-                const res = await fetch(`${API}/api/system-info/${currentMAC}`);
+                const res  = await fetch(`${API}/api/system-info/${currentMAC}`);
                 const info = await res.json();
 
                 if (info.cpu !== undefined) {
                     document.getElementById('sysinfoSection').style.display = '';
-                    document.getElementById('cpuVal').textContent = info.cpu + '%';
-                    document.getElementById('ramVal').textContent = info.ram_percent + '%';
+                    document.getElementById('cpuVal').textContent  = info.cpu + '%';
+                    document.getElementById('ramVal').textContent  = info.ram_percent + '%';
                     document.getElementById('ramDetail').textContent = `${info.ram_used_gb}/${info.ram_total_gb} GB`;
-                    document.getElementById('diskVal').textContent = info.disk_percent + '%';
-                    document.getElementById('diskDetail').textContent = `${info.disk_used_gb}/${info.disk_total_gb} GB`;
-
-                    // Color coding
                     colorCode('cpuVal', info.cpu);
                     colorCode('ramVal', info.ram_percent);
-                    colorCode('diskVal', info.disk_percent);
+
+                    // Discos dinâmicos
+                    const container = document.getElementById('diskCards');
+                    const disks = info.disks || [{
+                        mount: 'C:\\',
+                        percent: info.disk_percent,
+                        used_gb: info.disk_used_gb,
+                        total_gb: info.disk_total_gb
+                    }];
+
+                    container.innerHTML = disks.map((d, i) => {
+                        const letter = d.mount.replace(':\\', '').replace('/', '').toUpperCase() || String.fromCharCode(67 + i);
+                        const id = `diskVal${i}`;
+                        return `<div class="sysinfo-card">
+                            <div class="label">Disco ${letter}:</div>
+                            <div class="value" id="${id}">${d.percent}%</div>
+                            <div class="detail">${d.used_gb}/${d.total_gb} GB</div>
+                        </div>`;
+                    }).join('');
+
+                    disks.forEach((d, i) => colorCode(`diskVal${i}`, d.percent));
                 }
             } catch (e) {}
         }
@@ -576,29 +664,38 @@
         async function loadAudioDevices() {
             if (!currentMAC) return;
             try {
-                const res = await fetch(`${API}/api/devices/${currentMAC}`);
+                const res     = await fetch(`${API}/api/devices/${currentMAC}`);
                 const devices = await res.json();
 
                 if (devices.length > 0) {
                     const section = document.getElementById('audioSection');
-                    const select = document.getElementById('audioDeviceSelect');
+                    const grid    = section.querySelector('.audio-btns');
                     section.style.display = '';
-                    select.innerHTML = devices.map(d =>
-                        `<option value="${d.name}">${d.name}</option>`
-                    ).join('');
+                    grid.innerHTML = devices.map(d => {
+                        const label = shortAudioName(d.name);
+                        return `<button class="btn" onclick="cmd('set-audio-device', {device:${JSON.stringify(d.name)}})">${label}</button>`;
+                    }).join('');
                 }
             } catch (e) {}
         }
 
+        function shortAudioName(name) {
+            if (/G435/i.test(name))  return '&#x1F3A7; G435';
+            if (/Echo/i.test(name))  return '&#x1F50A; Echo';
+            if (/NVIDIA|24G/i.test(name)) return '&#x1F4FA; Monitor';
+            return name.length > 14 ? name.slice(0, 13) + '…' : name;
+        }
+
         function colorCode(id, value) {
             const el = document.getElementById(id);
+            if (!el) return;
             if (value > 85) el.style.color = 'var(--danger)';
             else if (value > 60) el.style.color = 'var(--warning)';
             else el.style.color = 'var(--success)';
         }
 
         function enableButtons(enabled) {
-            document.querySelectorAll('.btn, .vol-btn, .media-btn, .app-btn, .audio-apply, .tts-send').forEach(btn => {
+            document.querySelectorAll('.btn, .vol-btn, .media-btn, .app-btn, .tts-send').forEach(btn => {
                 btn.disabled = !enabled;
             });
         }
