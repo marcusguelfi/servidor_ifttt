@@ -69,17 +69,10 @@ async function main() {
                     reachable: true,
                     uniqueId: `${id}-unique`,
                 },
-                onOff: { onOff: false },
-                levelControl: { currentLevel: 127, minLevel: 1, maxLevel: 254 },
+                onOff: { onOff: true },
+                levelControl: { currentLevel: 127, minLevel: 0, maxLevel: 254 },
             });
             await aggregator.add(ep);
-
-            ep.events.onOff.onOff$Changed.on(async (value) => {
-                if (!value) {
-                    console.log(`[${device.name}] OFF → mute`);
-                    await callApi("mute");
-                }
-            });
 
             ep.events.levelControl.currentLevel$Changed.on(async (level) => {
                 const volume = Math.round(((level ?? 127) / 254) * 100);

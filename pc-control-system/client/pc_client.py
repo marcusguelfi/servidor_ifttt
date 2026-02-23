@@ -22,34 +22,40 @@ import pyautogui
 
 # IPolicyConfig - Interface COM nativa do Windows para mudar dispositivo de áudio padrão
 # GUIDs: https://github.com/tartakynov/audioswitch/blob/master/IPolicyConfig.h
+_POLICY_CONFIG_METHODS = [
+    COMMETHOD([], HRESULT, 'GetMixFormat',
+              (['in'], c_wchar_p), (['in'], c_void_p)),
+    COMMETHOD([], HRESULT, 'GetDeviceFormat',
+              (['in'], c_wchar_p), (['in'], c_int), (['in'], c_void_p)),
+    COMMETHOD([], HRESULT, 'ResetDeviceFormat',
+              (['in'], c_wchar_p)),
+    COMMETHOD([], HRESULT, 'SetDeviceFormat',
+              (['in'], c_wchar_p), (['in'], c_void_p), (['in'], c_void_p)),
+    COMMETHOD([], HRESULT, 'GetProcessingPeriod',
+              (['in'], c_wchar_p), (['in'], c_int), (['in'], c_void_p), (['in'], c_void_p)),
+    COMMETHOD([], HRESULT, 'SetProcessingPeriod',
+              (['in'], c_wchar_p), (['in'], c_void_p)),
+    COMMETHOD([], HRESULT, 'GetShareMode',
+              (['in'], c_wchar_p), (['in'], c_void_p)),
+    COMMETHOD([], HRESULT, 'SetShareMode',
+              (['in'], c_wchar_p), (['in'], c_uint)),
+    COMMETHOD([], HRESULT, 'GetPropertyValue',
+              (['in'], c_wchar_p), (['in'], c_int), (['in'], c_void_p), (['in'], c_void_p)),
+    COMMETHOD([], HRESULT, 'SetPropertyValue',
+              (['in'], c_wchar_p), (['in'], c_int), (['in'], c_void_p), (['in'], c_void_p)),
+    COMMETHOD([], HRESULT, 'SetDefaultEndpoint',
+              (['in'], c_wchar_p, 'wszDeviceId'), (['in'], c_uint, 'eRole')),
+    COMMETHOD([], HRESULT, 'SetEndpointVisibility',
+              (['in'], c_wchar_p), (['in'], c_int)),
+]
+
 class _IPolicyConfig(IUnknown):
-    _iid_ = GUID('{f8679f50-850a-41cf-9c72-430f290290c8}')
-    _methods_ = [
-        COMMETHOD([], HRESULT, 'GetMixFormat',
-                  (['in'], c_wchar_p), (['in'], c_void_p)),
-        COMMETHOD([], HRESULT, 'GetDeviceFormat',
-                  (['in'], c_wchar_p), (['in'], c_int), (['in'], c_void_p)),
-        COMMETHOD([], HRESULT, 'ResetDeviceFormat',
-                  (['in'], c_wchar_p)),
-        COMMETHOD([], HRESULT, 'SetDeviceFormat',
-                  (['in'], c_wchar_p), (['in'], c_void_p), (['in'], c_void_p)),
-        COMMETHOD([], HRESULT, 'GetProcessingPeriod',
-                  (['in'], c_wchar_p), (['in'], c_int), (['in'], c_void_p), (['in'], c_void_p)),
-        COMMETHOD([], HRESULT, 'SetProcessingPeriod',
-                  (['in'], c_wchar_p), (['in'], c_void_p)),
-        COMMETHOD([], HRESULT, 'GetShareMode',
-                  (['in'], c_wchar_p), (['in'], c_void_p)),
-        COMMETHOD([], HRESULT, 'SetShareMode',
-                  (['in'], c_wchar_p), (['in'], c_uint)),
-        COMMETHOD([], HRESULT, 'GetPropertyValue',
-                  (['in'], c_wchar_p), (['in'], c_int), (['in'], c_void_p), (['in'], c_void_p)),
-        COMMETHOD([], HRESULT, 'SetPropertyValue',
-                  (['in'], c_wchar_p), (['in'], c_int), (['in'], c_void_p), (['in'], c_void_p)),
-        COMMETHOD([], HRESULT, 'SetDefaultEndpoint',
-                  (['in'], c_wchar_p, 'wszDeviceId'), (['in'], c_uint, 'eRole')),
-        COMMETHOD([], HRESULT, 'SetEndpointVisibility',
-                  (['in'], c_wchar_p), (['in'], c_int)),
-    ]
+    _iid_ = GUID('{f8679f50-850a-41cf-9c72-430f290290c8}')  # Win7/8
+    _methods_ = _POLICY_CONFIG_METHODS
+
+class _IPolicyConfigVista(IUnknown):
+    _iid_ = GUID('{568b9108-44bf-40b4-9006-86afe5b5a620}')  # Win10/11
+    _methods_ = _POLICY_CONFIG_METHODS
 
 _CLSID_PolicyConfigClient = GUID('{870af99c-171d-4f9e-af0d-e63df40c2bc9}')
 
@@ -254,14 +260,51 @@ class PCControlClient:
 
     # ===== MODOS =====
 
+    def _find_window_by_title(self, partial):
+        """Busca janela visível cujo título contém 'partial' (case-insensitive). Retorna HWND ou None."""
+        result = []
+        user32 = ctypes.windll.user32
+
+        def callback(hwnd, _):
+            if user32.IsWindowVisible(hwnd):
+                length = user32.GetWindowTextLengthW(hwnd)
+                if length > 0:
+                    buf = ctypes.create_unicode_buffer(length + 1)
+                    user32.GetWindowTextW(hwnd, buf, length + 1)
+                    if partial.lower() in buf.value.lower():
+                        result.append(hwnd)
+            return True
+
+        WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
+        ctypes.windll.user32.EnumWindows(WNDENUMPROC(callback), 0)
+        return result[0] if result else None
+
     async def cinema_mode(self):
         print("Ativando modo cinema...")
-        # Abrir YouTube no Brave
-        brave_path = r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe"
-        if os.path.exists(brave_path):
-            subprocess.Popen([brave_path, "--start-fullscreen", "https://youtube.com"])
+
+        # Verificar se YouTube já está aberto (título da janela contém "YouTube")
+        hwnd = self._find_window_by_title("YouTube")
+
+        if hwnd:
+            print("YouTube já aberto — trazendo para frente...")
+            ctypes.windll.user32.ShowWindow(hwnd, 9)   # SW_RESTORE
+            ctypes.windll.user32.SetForegroundWindow(hwnd)
+            await asyncio.sleep(0.5)
         else:
-            subprocess.Popen(["start", "https://youtube.com"], shell=True)
+            print("Abrindo YouTube no Brave...")
+            brave_path = r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe"
+            if os.path.exists(brave_path):
+                subprocess.Popen([brave_path, "--new-window", "https://youtube.com"])
+            else:
+                subprocess.Popen(["start", "https://youtube.com"], shell=True)
+            await asyncio.sleep(3)  # aguardar carregamento
+
+        # Colocar em fullscreen via F11
+        pyautogui.press('f11')
+        await asyncio.sleep(0.5)
+
+        # Desativar monitor Philips (secundário) — mantém apenas o display primário
+        subprocess.Popen(["DisplaySwitch.exe", "/internal"])
 
         # Volume confortável
         await self.set_volume(40)
@@ -269,16 +312,22 @@ class PCControlClient:
 
     async def console_mode(self):
         print("Iniciando Steam Big Picture...")
-        steam_paths = [
-            r"C:\Program Files (x86)\Steam\steam.exe",
-            r"C:\Program Files\Steam\steam.exe",
-        ]
-        for path in steam_paths:
-            if os.path.exists(path):
-                subprocess.Popen([path, "-bigpicture"])
-                print("Steam Big Picture iniciado!")
-                return
-        print("Steam nao encontrado!")
+        # URI steam:// funciona tanto com Steam fechado quanto já aberto
+        try:
+            os.startfile("steam://open/bigpicture")
+            print("Steam Big Picture iniciado!")
+        except Exception:
+            # Fallback: lançar executável diretamente
+            steam_paths = [
+                r"C:\Program Files (x86)\Steam\steam.exe",
+                r"C:\Program Files\Steam\steam.exe",
+            ]
+            for path in steam_paths:
+                if os.path.exists(path):
+                    subprocess.Popen([path, "-bigpicture"])
+                    print("Steam Big Picture iniciado (fallback)!")
+                    return
+            print("Steam nao encontrado!")
 
     async def retro_console_mode(self):
         print("Ativando modo console retro...")
@@ -340,31 +389,38 @@ class PCControlClient:
         print(f"Audio {state}!")
 
     async def set_audio_output(self, device_name):
-        """Muda saída de áudio padrão via IPolicyConfig COM (nativo Python, sem PowerShell)"""
+        """Muda saída de áudio padrão via IPolicyConfig COM (Win7/8/10/11)"""
         print(f"Tentando mudar para: {device_name}")
 
-        # Buscar apenas entre saídas ativas (igual ao que aparece na lista do web)
+        # Buscar device ID entre saídas ativas
         target_id = None
         active_outputs = AudioUtilities.GetAllDevices(data_flow=0, device_state=1)
         for dev in active_outputs:
             if dev.FriendlyName and device_name.lower() in dev.FriendlyName.lower():
                 target_id = dev.id
+                print(f"  Device encontrado: {dev.FriendlyName} (id: {dev.id})")
                 break
 
         if not target_id:
             raise Exception(f"Dispositivo de áudio não encontrado: {device_name}")
 
-        # Chamar IPolicyConfig diretamente via comtypes (sem PowerShell, ~10ms)
-        policy_config = comtypes.CoCreateInstance(
-            _CLSID_PolicyConfigClient,
-            _IPolicyConfig,
-            comtypes.CLSCTX_ALL
-        )
-        # Definir como padrão para todas as roles: eConsole=0, eMultimedia=1, eCommunications=2
-        for role in range(3):
-            policy_config.SetDefaultEndpoint(target_id, role)
+        # Tentar IPolicyConfig (Win7/8) e _IPolicyConfigVista (Win10/11) como fallback
+        last_error = None
+        for iface in [_IPolicyConfig, _IPolicyConfigVista]:
+            try:
+                policy = comtypes.CoCreateInstance(
+                    _CLSID_PolicyConfigClient, iface, comtypes.CLSCTX_ALL
+                )
+                # eConsole=0, eMultimedia=1, eCommunications=2
+                for role in range(3):
+                    policy.SetDefaultEndpoint(target_id, role)
+                print(f"Saída de áudio alterada para: {device_name}")
+                return
+            except Exception as e:
+                last_error = e
+                continue
 
-        print(f"Saída de áudio alterada para: {device_name}")
+        raise Exception(f"IPolicyConfig falhou (Win7 e Win10 GUIDs): {last_error}")
 
     # ===== MÍDIA =====
 
