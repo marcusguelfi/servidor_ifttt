@@ -589,8 +589,9 @@
 
         touchpad.addEventListener('pointercancel', () => { ptX = ptY = null; });
 
-        function mouseClick(btn) { cmd('mouse-click', { button: btn }); }
+        function mouseClick(btn)  { cmd('mouse-click', { button: btn }); }
         function mouseScroll(d)   { cmd('mouse-scroll', { delta: d }); }
+        function switchAudio(el)  { cmd('set-audio-device', { device: el.dataset.dev }); }
 
         // ===== Data Loading =====
 
@@ -673,7 +674,8 @@
                     section.style.display = '';
                     grid.innerHTML = devices.map(d => {
                         const label = shortAudioName(d.name);
-                        return `<button class="btn" onclick="cmd('set-audio-device', {device:${JSON.stringify(d.name)}})">${label}</button>`;
+                        const safe  = d.name.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+                        return `<button class="btn" data-dev="${safe}" onclick="switchAudio(this)">${label}</button>`;
                     }).join('');
                 }
             } catch (e) {}

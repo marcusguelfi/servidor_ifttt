@@ -4,4 +4,4 @@ comtypes>=1.2.0
 pyautogui>=0.9.54
 psutil>=5.9.0
 edge-tts>=6.0.0
-pygame>=2.0.0
+playsound==1.2.2

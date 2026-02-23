@@ -19,6 +19,12 @@ from ctypes import cast, POINTER, HRESULT, c_uint, c_void_p, c_int, c_wchar_p
 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 import psutil
 import pyautogui
+import tempfile
+from playsound import playsound
+
+# Necessário para mouse-move funcionar sem travamento nos cantos e sem atraso entre chamadas
+pyautogui.FAILSAFE = False
+pyautogui.PAUSE = 0
 
 # IPolicyConfig - Interface COM nativa do Windows para mudar dispositivo de áudio padrão
 # GUIDs: https://github.com/tartakynov/audioswitch/blob/master/IPolicyConfig.h
@@ -471,10 +477,7 @@ class PCControlClient:
         print(f"TTS: {text}")
         try:
             import edge_tts
-            import pygame
-            import tempfile
 
-            # Voz configurável via variável de ambiente (padrão: Antonio pt-BR masculino)
             voice = os.environ.get('TTS_VOICE', 'pt-BR-AntonioNeural')
             rate = os.environ.get('TTS_RATE', '+0%')
 
@@ -482,15 +485,13 @@ class PCControlClient:
             tmp = tempfile.mktemp(suffix='.mp3')
             await tts.save(tmp)
 
-            pygame.mixer.init()
-            pygame.mixer.music.load(tmp)
-            pygame.mixer.music.play()
-            while pygame.mixer.music.get_busy():
-                await asyncio.sleep(0.05)
-            pygame.mixer.quit()
+            # playsound é bloqueante — roda em thread para não travar o loop asyncio
+            await asyncio.to_thread(playsound, tmp)
             os.unlink(tmp)
             print("TTS concluido!")
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             print(f"Erro no TTS: {e}")
 
     # ===== NOTIFICAÇÃO =====
