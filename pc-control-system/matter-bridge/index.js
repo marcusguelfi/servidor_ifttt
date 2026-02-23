@@ -6,7 +6,13 @@ import { AggregatorEndpoint } from "@matter/main/endpoints/aggregator";
 import { OnOffPlugInUnitDevice } from "@matter/main/devices/on-off-plug-in-unit";
 import { DimmableLightDevice } from "@matter/main/devices/dimmable-light";
 import { BridgedDeviceBasicInformationServer } from "@matter/main/behaviors/bridged-device-basic-information";
+import { IdentifyServer } from "@matter/main/behaviors/identify";
 import { readFileSync } from "node:fs";
+
+// Suprime o WARN "triggerEffect: Throws unimplemented exception" em cada device
+class QuietIdentifyServer extends IdentifyServer {
+    async triggerEffect() {}
+}
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -62,7 +68,7 @@ async function main() {
         const id = `device-${index}`;
 
         if (device.type === "dimmer") {
-            const ep = new Endpoint(DimmableLightDevice.with(BridgedDeviceBasicInformationServer), {
+            const ep = new Endpoint(DimmableLightDevice.with(BridgedDeviceBasicInformationServer, QuietIdentifyServer), {
                 id,
                 bridgedDeviceBasicInformation: {
                     nodeLabel: device.name,
@@ -80,7 +86,7 @@ async function main() {
                 await callApi("set-volume", { volume });
             });
         } else {
-            const ep = new Endpoint(OnOffPlugInUnitDevice.with(BridgedDeviceBasicInformationServer), {
+            const ep = new Endpoint(OnOffPlugInUnitDevice.with(BridgedDeviceBasicInformationServer, QuietIdentifyServer), {
                 id,
                 bridgedDeviceBasicInformation: {
                     nodeLabel: device.name,
