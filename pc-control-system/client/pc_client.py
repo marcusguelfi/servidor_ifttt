@@ -358,22 +358,19 @@ class PCControlClient:
 
     async def console_mode(self):
         print("Iniciando Steam Big Picture...")
-        # URI steam:// funciona tanto com Steam fechado quanto já aberto
-        try:
-            os.startfile("steam://open/bigpicture")
+        steam_paths = [
+            r"C:\Program Files (x86)\Steam\steam.exe",
+            r"C:\Program Files\Steam\steam.exe",
+        ]
+        exe = next((p for p in steam_paths if os.path.exists(p)), None)
+        if exe:
+            # -gamepadui = Steam novo (2022+); abre diretamente em Big Picture
+            subprocess.Popen([exe, "-gamepadui"])
             print("Steam Big Picture iniciado!")
-        except Exception:
-            # Fallback: lançar executável diretamente
-            steam_paths = [
-                r"C:\Program Files (x86)\Steam\steam.exe",
-                r"C:\Program Files\Steam\steam.exe",
-            ]
-            for path in steam_paths:
-                if os.path.exists(path):
-                    subprocess.Popen([path, "-bigpicture"])
-                    print("Steam Big Picture iniciado (fallback)!")
-                    return
-            print("Steam nao encontrado!")
+        else:
+            # Fallback: protocolo steam:// via shell (requer Steam já instalado)
+            subprocess.Popen(["start", "steam://open/bigpicture"], shell=True)
+            print("Steam Big Picture iniciado via URI!")
 
     async def retro_console_mode(self):
         print("Ativando modo console retro...")
@@ -563,16 +560,15 @@ class PCControlClient:
             'brave': lambda: subprocess.Popen([
                 r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe"
             ]),
-            'league': lambda: subprocess.Popen([
-                r"C:\Riot Games\League of Legends\LeagueClient.exe"
-            ]),
-            'lol': lambda: subprocess.Popen([
-                r"C:\Riot Games\League of Legends\LeagueClient.exe"
-            ]),
+            'league': lambda: self._open_lol(),
+            'lol':    lambda: self._open_lol(),
             'steam': lambda: subprocess.Popen([
                 r"C:\Program Files (x86)\Steam\steam.exe"
             ]),
-            'spotify': lambda: os.startfile("spotify:"),
+            'ytmusic': lambda: subprocess.Popen([
+                r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe",
+                "https://music.youtube.com"
+            ]),
             'discord': lambda: subprocess.Popen([
                 os.path.expanduser(r"~\AppData\Local\Discord\Update.exe"),
                 "--processStart", "Discord.exe"
@@ -588,6 +584,35 @@ class PCControlClient:
                 print(f"Erro ao abrir {app_name}: {e}")
         else:
             print(f"App nao configurado: {app_name}")
+
+    def _open_lol(self):
+        """Abre League of Legends tentando múltiplos caminhos conhecidos."""
+        # Tentar Riot Client primeiro (lança LoL via launcher oficial)
+        riot_client_paths = [
+            r"C:\Riot Games\Riot Client\RiotClientServices.exe",
+            r"C:\Program Files\Riot Games\Riot Client\RiotClientServices.exe",
+        ]
+        for path in riot_client_paths:
+            if os.path.exists(path):
+                subprocess.Popen([path,
+                    "--launch-product=league_of_legends",
+                    "--launch-patchline=live"])
+                print("LoL iniciado via Riot Client!")
+                return
+
+        # Fallback: executável direto do LeagueClient
+        lol_paths = [
+            r"C:\Riot Games\League of Legends\LeagueClient.exe",
+            r"C:\Program Files\Riot Games\League of Legends\LeagueClient.exe",
+            r"C:\Program Files (x86)\Riot Games\League of Legends\LeagueClient.exe",
+        ]
+        for path in lol_paths:
+            if os.path.exists(path):
+                subprocess.Popen([path])
+                print("LoL iniciado!")
+                return
+
+        print("League of Legends nao encontrado!")
 
     # ===== CONEXÃO =====
 
