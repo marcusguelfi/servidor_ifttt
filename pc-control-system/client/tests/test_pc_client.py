@@ -261,6 +261,44 @@ async def test_deve_chamar_displayswitch_extend_quando_dual_monitor(client):
 
 
 # ─────────────────────────────────────────────
+# Shutdown — delay e imediato
+# ─────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_deve_desligar_imediatamente_quando_delay_zero(client):
+    with patch('os.system') as mock_os:
+        await client.shutdown_pc(0)
+        mock_os.assert_called_once_with('shutdown /s /t 5')
+
+
+@pytest.mark.asyncio
+async def test_deve_criar_task_quando_delay_positivo(client):
+    with patch('asyncio.create_task') as mock_task:
+        await client.shutdown_pc(60)
+        mock_task.assert_called_once()
+        assert client.shutdown_task is not None
+
+
+@pytest.mark.asyncio
+async def test_deve_cancelar_task_anterior_ao_receber_novo_shutdown(client):
+    mock_task = MagicMock()
+    client.shutdown_task = mock_task
+    with patch('asyncio.create_task'):
+        await client.shutdown_pc(30)
+        mock_task.cancel.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_deve_usar_powershell_quando_sleep(client):
+    with patch('subprocess.Popen') as mock_popen:
+        await client.sleep_pc()
+        args = mock_popen.call_args[0][0]
+        assert args[0] == 'powershell'
+        assert 'SetSuspendState' in args[2]
+        assert 'Suspend' in args[2]
+
+
+# ─────────────────────────────────────────────
 # claude-yes
 # ─────────────────────────────────────────────
 

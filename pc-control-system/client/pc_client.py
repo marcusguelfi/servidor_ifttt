@@ -263,6 +263,7 @@ class PCControlClient:
             )
         else:
             print("Desligando PC AGORA...")
+            await asyncio.sleep(1)  # aguardar envio do feedback WebSocket
             os.system("shutdown /s /t 5")
 
     async def _delayed_shutdown(self, seconds):
@@ -290,7 +291,13 @@ class PCControlClient:
 
     async def sleep_pc(self):
         print("Entrando em modo suspensao...")
-        os.system("rundll32.exe powrprof.dll,SetSuspendState 0,1,0")
+        await asyncio.sleep(1)  # aguardar envio do feedback WebSocket
+        # PowerShell é mais confiável que rundll32 no Windows 10/11
+        subprocess.Popen([
+            "powershell", "-Command",
+            "Add-Type -AssemblyName System.Windows.Forms; "
+            "[System.Windows.Forms.Application]::SetSuspendState('Suspend', $false, $false)"
+        ])
 
     async def turn_off_monitor(self):
         print("Desligando monitor...")
