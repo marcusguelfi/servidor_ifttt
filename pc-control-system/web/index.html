@@ -4,154 +4,308 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PC Control</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&family=VT323&display=swap" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        /* ── Reset & Variables ─────────────────────────────────────── */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
         :root {
-            --bg: #0f0f1a;
-            --surface: #1a1a2e;
-            --surface2: #222240;
-            --accent: #6c63ff;
-            --accent-hover: #5a52e0;
-            --success: #00c853;
-            --danger: #ff3d57;
-            --warning: #ffab00;
-            --text: #e8e8f0;
-            --text-dim: #8888aa;
-            --border: #2a2a4a;
-            --radius: 12px;
+            --bg:          #030903;
+            --surface:     #09120a;
+            --surface2:    #0e1c0f;
+            --surface3:    #132214;
+            --green:       #00e534;
+            --green-glow:  rgba(0,229,52,.18);
+            --green-dim:   #1c6b28;
+            --green-muted: rgba(0,229,52,.07);
+            --text:        #aee8b0;
+            --text-dim:    #3d6b42;
+            --text-bright: #d4f7d5;
+            --red:         #ff3c3c;
+            --amber:       #ffaa00;
+            --border:      rgba(0,229,52,.15);
+            --border-hover:rgba(0,229,52,.6);
+            --radius:      4px;
+            --font-mono:   'JetBrains Mono', monospace;
+            --font-vt:     'VT323', monospace;
         }
 
+        /* ── Base ──────────────────────────────────────────────────── */
+        html { scroll-behavior: smooth; }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: var(--font-mono);
             background: var(--bg);
             color: var(--text);
             min-height: 100vh;
-            padding: 16px;
+            padding: 12px;
+            overflow-x: hidden;
+            /* scanline texture */
+            background-image:
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 3px,
+                    rgba(0,0,0,.12) 3px,
+                    rgba(0,0,0,.12) 4px
+                );
         }
 
-        .container { max-width: 800px; margin: 0 auto; }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--green-dim); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--green); }
 
-        /* Header */
+        .container { max-width: 780px; margin: 0 auto; }
+
+        /* ── Header ────────────────────────────────────────────────── */
         .header {
-            text-align: center;
-            padding: 20px 0 16px;
-        }
-        .header h1 { font-size: 1.5em; font-weight: 700; }
-        .header .status {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            margin-top: 8px;
-            font-size: 0.85em;
-            color: var(--text-dim);
-        }
-        .header .dot {
-            width: 8px; height: 8px;
-            border-radius: 50%;
-            background: var(--danger);
-        }
-        .header .dot.online { background: var(--success); }
-
-        /* System Info Bar */
-        .sysinfo {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-            gap: 10px;
+            padding: 18px 0 20px;
+            border-bottom: 1px solid var(--border);
             margin-bottom: 20px;
         }
+
+        .header-top {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+        }
+
+        .header-prompt {
+            font-family: var(--font-vt);
+            font-size: 1.6em;
+            color: var(--green);
+            text-shadow: 0 0 16px var(--green);
+            letter-spacing: 2px;
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            font-family: var(--font-vt);
+            font-size: 1.8em;
+            letter-spacing: 3px;
+            color: var(--text-bright);
+            text-shadow: 0 0 20px rgba(0,229,52,.4);
+            text-transform: uppercase;
+        }
+
+        .header-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+            font-size: 0.72em;
+            color: var(--text-dim);
+            padding-left: 2px;
+        }
+
+        .dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--red);
+            box-shadow: 0 0 6px var(--red);
+            flex-shrink: 0;
+        }
+        .dot.online {
+            background: var(--green);
+            box-shadow: 0 0 6px var(--green);
+            animation: pulse 2.4s ease infinite;
+        }
+        @keyframes pulse {
+            0%,100% { box-shadow: 0 0 4px var(--green); }
+            50%      { box-shadow: 0 0 14px var(--green), 0 0 28px rgba(0,229,52,.3); }
+        }
+
+        #statusText { color: var(--text); }
+        #pcName     { color: var(--green); opacity: .8; font-size: 0.95em; }
+
+        /* ── System Info ───────────────────────────────────────────── */
+        .sysinfo {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        #diskCards { display: contents; }
+
         .sysinfo-card {
             background: var(--surface);
+            border: 1px solid var(--border);
             border-radius: var(--radius);
-            padding: 14px;
+            padding: 12px 10px;
             text-align: center;
+            position: relative;
+            overflow: hidden;
         }
-        .sysinfo-card .label { font-size: 0.75em; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
-        .sysinfo-card .value { font-size: 1.6em; font-weight: 700; margin-top: 4px; }
-        .sysinfo-card .detail { font-size: 0.75em; color: var(--text-dim); margin-top: 2px; }
-
-        /* Sections */
-        .section {
-            background: var(--surface);
-            border-radius: var(--radius);
-            padding: 16px;
-            margin-bottom: 14px;
+        .sysinfo-card::before {
+            content: '';
+            position: absolute;
+            inset: 0 0 auto 0;
+            height: 2px;
+            background: var(--green);
+            opacity: .35;
         }
-        .section-title {
-            font-size: 0.8em;
-            font-weight: 600;
+        .sysinfo-card .label {
+            font-size: 0.65em;
             color: var(--text-dim);
             text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 12px;
+            letter-spacing: 1.5px;
+        }
+        .sysinfo-card .value {
+            font-family: var(--font-vt);
+            font-size: 2em;
+            line-height: 1.1;
+            margin-top: 4px;
+            text-shadow: 0 0 12px currentColor;
+        }
+        .sysinfo-card .detail {
+            font-size: 0.6em;
+            color: var(--text-dim);
+            margin-top: 2px;
         }
 
-        /* Button Grid */
+        /* ── Section ───────────────────────────────────────────────── */
+        .section {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px 14px 14px 16px;
+            margin-bottom: 10px;
+            border-left: 3px solid var(--green-dim);
+            transition: border-left-color 0.3s;
+        }
+        .section:focus-within { border-left-color: var(--green); }
+
+        .section-title {
+            font-size: 0.65em;
+            font-weight: 700;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .section-title::before {
+            content: '//';
+            color: var(--green);
+            font-style: italic;
+            opacity: 0.7;
+        }
+
+        /* ── Buttons ───────────────────────────────────────────────── */
         .btn-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-            gap: 8px;
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            gap: 7px;
         }
-        .btn-grid.wide { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
 
         .btn {
-            background: var(--surface2);
+            background: var(--green-muted);
             color: var(--text);
             border: 1px solid var(--border);
-            padding: 12px 8px;
-            border-radius: 10px;
+            padding: 11px 8px;
+            border-radius: var(--radius);
             cursor: pointer;
-            font-size: 0.85em;
+            font-family: var(--font-mono);
+            font-size: 0.78em;
             font-weight: 500;
-            transition: all 0.2s;
+            transition: background .15s, border-color .15s, box-shadow .15s, color .15s, transform .1s;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 4px;
+            gap: 5px;
+            letter-spacing: 0.3px;
         }
+        .btn .icon { font-size: 1.3em; line-height: 1; }
         .btn:hover:not(:disabled) {
-            background: var(--accent);
-            border-color: var(--accent);
-            transform: translateY(-1px);
+            background: var(--green-glow);
+            border-color: var(--green);
+            color: var(--green);
+            box-shadow: 0 0 10px rgba(0,229,52,.2), inset 0 0 8px rgba(0,229,52,.05);
         }
-        .btn:active:not(:disabled) { transform: scale(0.97); }
-        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-        .btn .icon { font-size: 1.4em; }
+        .btn:active:not(:disabled) { transform: scale(0.96); }
+        .btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
-        .btn.danger { border-color: var(--danger); color: var(--danger); }
-        .btn.danger:hover:not(:disabled) { background: var(--danger); color: #fff; }
-        .btn.success { border-color: var(--success); color: var(--success); }
-        .btn.success:hover:not(:disabled) { background: var(--success); color: #fff; }
-        .btn.warning { border-color: var(--warning); color: var(--warning); }
-        .btn.warning:hover:not(:disabled) { background: var(--warning); color: #fff; }
+        .btn.danger {
+            border-color: rgba(255,60,60,.3);
+            color: var(--red);
+        }
+        .btn.danger:hover:not(:disabled) {
+            background: rgba(255,60,60,.1);
+            border-color: var(--red);
+            color: var(--red);
+            box-shadow: 0 0 10px rgba(255,60,60,.2);
+        }
+        .btn.warning {
+            border-color: rgba(255,170,0,.3);
+            color: var(--amber);
+        }
+        .btn.warning:hover:not(:disabled) {
+            background: rgba(255,170,0,.1);
+            border-color: var(--amber);
+            color: var(--amber);
+            box-shadow: 0 0 10px rgba(255,170,0,.2);
+        }
+        .btn.success { border-color: rgba(0,229,52,.3); color: var(--green); }
+        .btn.success:hover:not(:disabled) {
+            background: var(--green-glow);
+            border-color: var(--green);
+            box-shadow: 0 0 10px rgba(0,229,52,.25);
+        }
 
-        /* Volume */
+        /* ── Timer Grid ────────────────────────────────────────────── */
+        .timer-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 7px;
+        }
+
+        /* ── Volume ────────────────────────────────────────────────── */
         .volume-row {
             display: flex;
             align-items: center;
             gap: 12px;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
         }
         .volume-slider {
-            flex: 1;
             -webkit-appearance: none;
-            height: 6px;
-            border-radius: 3px;
-            background: var(--border);
+            flex: 1;
+            height: 4px;
+            border-radius: 2px;
+            background: var(--surface3);
             outline: none;
+            cursor: pointer;
         }
         .volume-slider::-webkit-slider-thumb {
             -webkit-appearance: none;
-            width: 20px; height: 20px;
+            width: 18px; height: 18px;
             border-radius: 50%;
-            background: var(--accent);
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
+            cursor: pointer;
+            border: 2px solid var(--bg);
+        }
+        .volume-slider::-moz-range-thumb {
+            width: 18px; height: 18px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
+            border: 2px solid var(--bg);
             cursor: pointer;
         }
         .volume-value {
-            font-size: 1.1em;
-            font-weight: 700;
-            min-width: 40px;
-            text-align: center;
+            font-family: var(--font-vt);
+            font-size: 1.6em;
+            min-width: 52px;
+            text-align: right;
+            color: var(--green);
+            text-shadow: 0 0 10px var(--green);
         }
         .volume-presets {
             display: grid;
@@ -159,45 +313,28 @@
             gap: 6px;
         }
         .vol-btn {
-            background: var(--surface2);
-            color: var(--text);
+            background: var(--green-muted);
+            color: var(--text-dim);
             border: 1px solid var(--border);
-            padding: 8px 4px;
-            border-radius: 8px;
+            padding: 7px 4px;
+            border-radius: var(--radius);
             cursor: pointer;
-            font-size: 0.8em;
+            font-family: var(--font-mono);
+            font-size: 0.75em;
             font-weight: 600;
-            transition: all 0.2s;
+            transition: background .15s, border-color .15s, color .15s;
         }
-        .vol-btn:hover { background: var(--accent); border-color: var(--accent); }
+        .vol-btn:hover:not(:disabled) {
+            background: var(--green-glow);
+            border-color: var(--green);
+            color: var(--green);
+        }
+        .vol-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
-        /* Media Controls */
-        .media-row {
-            display: flex;
-            justify-content: center;
-            gap: 12px;
-        }
-        .media-btn {
-            background: var(--surface2);
-            color: var(--text);
-            border: 1px solid var(--border);
-            width: 56px; height: 56px;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 1.4em;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
-        }
-        .media-btn:hover { background: var(--accent); border-color: var(--accent); }
-        .media-btn.play { width: 64px; height: 64px; font-size: 1.6em; }
-
-        /* Touchpad */
+        /* ── Touchpad ──────────────────────────────────────────────── */
         .touchpad {
             width: 100%;
-            height: 180px;
-            background: var(--surface2);
+            height: 170px;
             border: 1px solid var(--border);
             border-radius: var(--radius);
             cursor: crosshair;
@@ -208,113 +345,208 @@
             align-items: center;
             justify-content: center;
             color: var(--text-dim);
-            font-size: 0.85em;
+            font-size: 0.72em;
+            letter-spacing: 1px;
+            background-image:
+                linear-gradient(var(--border) 1px, transparent 1px),
+                linear-gradient(90deg, var(--border) 1px, transparent 1px);
+            background-size: 28px 28px;
+            background-color: var(--surface2);
+            transition: border-color .2s, box-shadow .2s;
+            position: relative;
         }
-        .touchpad:active { border-color: var(--accent); }
+        .touchpad:active {
+            border-color: var(--green);
+            box-shadow: 0 0 12px rgba(0,229,52,.15);
+        }
+        .touchpad-hint {
+            pointer-events: none;
+            text-align: center;
+            line-height: 1.7;
+        }
+
         .mouse-btns {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
+            gap: 7px;
             margin-bottom: 8px;
         }
         .mouse-hint {
             text-align: center;
-            font-size: 0.72em;
+            font-size: 0.65em;
             color: var(--text-dim);
+            font-style: italic;
         }
 
-        /* TTS */
-        .tts-row {
+        /* ── Media Controls ────────────────────────────────────────── */
+        .media-row {
             display: flex;
-            gap: 8px;
+            justify-content: center;
+            align-items: center;
+            gap: 14px;
         }
+        .media-btn {
+            background: var(--green-muted);
+            color: var(--text);
+            border: 1px solid var(--border);
+            width: 52px; height: 52px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.3em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background .15s, border-color .15s, box-shadow .15s, color .15s;
+        }
+        .media-btn.play { width: 62px; height: 62px; font-size: 1.5em; }
+        .media-btn:hover:not(:disabled) {
+            background: var(--green-glow);
+            border-color: var(--green);
+            color: var(--green);
+            box-shadow: 0 0 16px rgba(0,229,52,.3);
+        }
+        .media-btn:active:not(:disabled) { transform: scale(0.93); }
+        .media-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        /* ── TTS ───────────────────────────────────────────────────── */
+        .tts-row { display: flex; gap: 8px; }
         .tts-input {
             flex: 1;
             background: var(--surface2);
-            color: var(--text);
+            color: var(--text-bright);
             border: 1px solid var(--border);
             padding: 10px 12px;
-            border-radius: 8px;
-            font-size: 0.9em;
+            border-radius: var(--radius);
+            font-family: var(--font-mono);
+            font-size: 0.82em;
+            outline: none;
+            transition: border-color .2s, box-shadow .2s;
         }
-        .tts-input::placeholder { color: var(--text-dim); }
+        .tts-input::placeholder { color: var(--text-dim); font-style: italic; }
+        .tts-input:focus {
+            border-color: var(--green);
+            box-shadow: 0 0 8px rgba(0,229,52,.15);
+        }
         .tts-send {
-            background: var(--accent);
-            color: #fff;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
+            background: var(--green-glow);
+            color: var(--green);
+            border: 1px solid rgba(0,229,52,.4);
+            padding: 10px 18px;
+            border-radius: var(--radius);
             cursor: pointer;
-            font-weight: 600;
+            font-family: var(--font-mono);
+            font-size: 0.82em;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            transition: background .15s, border-color .15s, box-shadow .15s;
         }
-        .tts-send:hover { background: var(--accent-hover); }
+        .tts-send:hover:not(:disabled) {
+            background: rgba(0,229,52,.25);
+            border-color: var(--green);
+            box-shadow: 0 0 10px rgba(0,229,52,.25);
+        }
+        .tts-send:disabled { opacity: 0.3; cursor: not-allowed; }
 
-        /* Apps */
+        /* ── Apps ──────────────────────────────────────────────────── */
         .app-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-            gap: 8px;
+            gap: 7px;
         }
         .app-btn {
-            background: var(--surface2);
+            background: var(--green-muted);
             border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 12px 8px;
+            border-radius: var(--radius);
+            padding: 12px 6px 10px;
             cursor: pointer;
             text-align: center;
-            transition: all 0.2s;
+            transition: background .15s, border-color .15s, box-shadow .15s, transform .1s;
         }
-        .app-btn:hover { border-color: var(--accent); transform: scale(1.05); }
-        .app-btn .icon { font-size: 1.6em; }
-        .app-btn .name { font-size: 0.7em; color: var(--text-dim); margin-top: 4px; }
+        .app-btn:hover:not(:disabled) {
+            background: var(--green-glow);
+            border-color: var(--green);
+            box-shadow: 0 0 10px rgba(0,229,52,.15);
+            transform: translateY(-1px);
+        }
+        .app-btn:active:not(:disabled) { transform: scale(0.96); }
+        .app-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .app-btn .icon { font-size: 1.5em; line-height: 1.2; }
+        .app-btn .name { font-family: var(--font-mono); font-size: 0.65em; color: var(--text-dim); margin-top: 5px; }
 
-        /* Toast */
+        /* ── Toast ─────────────────────────────────────────────────── */
         .toast {
             position: fixed;
             bottom: 20px;
             left: 50%;
-            transform: translateX(-50%) translateY(100px);
-            background: var(--accent);
-            color: #fff;
-            padding: 12px 24px;
-            border-radius: 10px;
-            font-size: 0.9em;
-            font-weight: 500;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-            transition: transform 0.3s;
+            transform: translateX(-50%) translateY(80px);
+            background: var(--surface3);
+            color: var(--green);
+            border: 1px solid rgba(0,229,52,.4);
+            padding: 10px 22px;
+            border-radius: var(--radius);
+            font-family: var(--font-mono);
+            font-size: 0.78em;
+            letter-spacing: 0.5px;
+            box-shadow: 0 0 20px rgba(0,229,52,.2), 0 4px 20px rgba(0,0,0,.5);
+            transition: transform 0.25s cubic-bezier(.22,.61,.36,1);
             z-index: 1000;
+            white-space: nowrap;
         }
-        .toast.show { transform: translateX(-50%) translateY(0); }
-        .toast.error { background: var(--danger); }
+        .toast::before { content: '> '; opacity: 0.6; }
+        .toast.show    { transform: translateX(-50%) translateY(0); }
+        .toast.error   { color: var(--red); border-color: rgba(255,60,60,.4); box-shadow: 0 0 20px rgba(255,60,60,.2), 0 4px 20px rgba(0,0,0,.5); }
 
-        /* Shutdown timers */
-        .timer-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
+        /* ── Divider ───────────────────────────────────────────────── */
+        .section-divider {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 18px 0;
         }
 
-        /* Mobile */
-        @media (max-width: 480px) {
-            body { padding: 10px; }
-            .btn-grid.wide { grid-template-columns: repeat(2, 1fr); }
+        /* ── Footer ────────────────────────────────────────────────── */
+        .footer {
+            text-align: center;
+            font-size: 0.6em;
+            color: var(--text-dim);
+            padding: 20px 0 10px;
+            letter-spacing: 1px;
+        }
+
+        /* ── Responsive ────────────────────────────────────────────── */
+        @media (max-width: 520px) {
+            body { padding: 8px; }
+            .header h1 { font-size: 1.5em; }
+
+            .btn-grid { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
             .timer-grid { grid-template-columns: repeat(2, 1fr); }
             .volume-presets { grid-template-columns: repeat(3, 1fr); }
             .mouse-btns { grid-template-columns: repeat(2, 1fr); }
-            .media-btn { width: 52px; height: 52px; font-size: 1.3em; }
-            .media-btn.play { width: 60px; height: 60px; }
-            .header h1 { font-size: 1.3em; }
+
+            .media-btn       { width: 46px; height: 46px; font-size: 1.2em; }
+            .media-btn.play  { width: 56px; height: 56px; font-size: 1.4em; }
+
+            .tts-send { padding: 10px 12px; }
+            .volume-value { font-size: 1.4em; min-width: 44px; }
+        }
+
+        @media (max-width: 380px) {
+            .timer-grid { grid-template-columns: repeat(2, 1fr); }
+            .app-grid { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }
         }
     </style>
 </head>
 <body>
     <div class="container">
+
         <!-- Header -->
         <div class="header">
-            <h1>PC Control</h1>
-            <div class="status">
+            <div class="header-top">
+                <span class="header-prompt">&gt;</span>
+                <h1>PC_CONTROL</h1>
+            </div>
+            <div class="header-status">
                 <span class="dot" id="statusDot"></span>
-                <span id="statusText">Conectando...</span>
+                <span id="statusText">conectando...</span>
                 <span id="pcName"></span>
             </div>
         </div>
@@ -331,67 +563,74 @@
                 <div class="value" id="ramVal">-</div>
                 <div class="detail" id="ramDetail"></div>
             </div>
-            <!-- Disco(s) renderizados dinamicamente via JS -->
             <div id="diskCards"></div>
         </div>
 
         <!-- Sistema -->
         <div class="section">
             <div class="section-title">Sistema</div>
-            <div class="btn-grid wide">
+            <div class="btn-grid">
                 <button class="btn danger" onclick="cmd('shutdown')">
-                    <span class="icon">&#x23FB;</span> Desligar
+                    <span class="icon">&#x23FB;</span>Desligar
                 </button>
                 <button class="btn warning" onclick="cmd('restart')">
-                    <span class="icon">&#x21BB;</span> Reiniciar
+                    <span class="icon">&#x21BB;</span>Reiniciar
                 </button>
                 <button class="btn" onclick="cmd('sleep')">
-                    <span class="icon">&#x263E;</span> Suspender
+                    <span class="icon">&#x263E;</span>Suspender
                 </button>
                 <button class="btn" onclick="cmd('lock-pc')">
-                    <span class="icon">&#x1F512;</span> Bloquear
+                    <span class="icon">&#x1F512;</span>Bloquear
                 </button>
                 <button class="btn" onclick="cmd('monitor-off')">
-                    <span class="icon">&#x1F4F4;</span> Monitor Off
+                    <span class="icon">&#x1F4F4;</span>Monitor Off
                 </button>
             </div>
         </div>
 
-        <!-- Shutdown Timer -->
+        <!-- Timer Desligar -->
         <div class="section">
             <div class="section-title">Timer Desligar</div>
             <div class="timer-grid">
-                <button class="btn warning" onclick="cmd('shutdown', {delay: 60})">1h</button>
-                <button class="btn warning" onclick="cmd('shutdown', {delay: 90})">1:30h</button>
-                <button class="btn warning" onclick="cmd('shutdown', {delay: 120})">2h</button>
-                <button class="btn success" onclick="cmd('cancel-shutdown')">Cancelar</button>
+                <button class="btn warning" onclick="cmd('shutdown', {delay:60})">
+                    <span class="icon">&#x23F1;</span>1h
+                </button>
+                <button class="btn warning" onclick="cmd('shutdown', {delay:90})">
+                    <span class="icon">&#x23F1;</span>1:30h
+                </button>
+                <button class="btn warning" onclick="cmd('shutdown', {delay:120})">
+                    <span class="icon">&#x23F1;</span>2h
+                </button>
+                <button class="btn success" onclick="cmd('cancel-shutdown')">
+                    <span class="icon">&#x2715;</span>Cancelar
+                </button>
             </div>
         </div>
 
         <!-- Modos -->
         <div class="section">
             <div class="section-title">Modos</div>
-            <div class="btn-grid wide">
+            <div class="btn-grid">
                 <button class="btn" onclick="cmd('cinema-mode')">
-                    <span class="icon">&#x1F3AC;</span> Cinema
+                    <span class="icon">&#x1F3AC;</span>Cinema
                 </button>
                 <button class="btn" onclick="cmd('console-mode')">
-                    <span class="icon">&#x1F3AE;</span> Console
+                    <span class="icon">&#x1F3AE;</span>Console
                 </button>
                 <button class="btn" onclick="cmd('retro-console')">
-                    <span class="icon">&#x1F579;</span> Retro
+                    <span class="icon">&#x1F579;</span>Retro
                 </button>
                 <button class="btn" onclick="cmd('night-mode')">
-                    <span class="icon">&#x1F319;</span> Night
+                    <span class="icon">&#x1F319;</span>Night
                 </button>
                 <button class="btn" onclick="cmd('dual-monitor')">
-                    <span class="icon">&#x1F5A5;</span> 2 Telas
+                    <span class="icon">&#x1F5A5;</span>2 Telas
                 </button>
                 <button class="btn" onclick="cmd('fullscreen')">
-                    <span class="icon">&#x26F6;</span> Tela Cheia
+                    <span class="icon">&#x26F6;</span>Tela Cheia
                 </button>
                 <button class="btn" onclick="cmd('video-fullscreen')">
-                    <span class="icon">&#x1F3A5;</span> Vídeo Full
+                    <span class="icon">&#x1F3A5;</span>Vídeo Full
                 </button>
             </div>
         </div>
@@ -400,7 +639,7 @@
         <div class="section">
             <div class="section-title">Volume</div>
             <div class="volume-row">
-                <button class="media-btn" onclick="cmd('mute')" title="Mute">&#x1F507;</button>
+                <button class="media-btn" onclick="cmd('mute')" title="Mute" style="width:44px;height:44px;font-size:1.1em;flex-shrink:0">&#x1F507;</button>
                 <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="50"
                        oninput="updateVolDisplay(this.value)">
                 <span class="volume-value" id="volumeVal">50%</span>
@@ -415,7 +654,7 @@
             </div>
         </div>
 
-        <!-- Audio Devices — botões dinâmicos -->
+        <!-- Saída de Áudio — dinâmico -->
         <div class="section" id="audioSection" style="display:none">
             <div class="section-title">Sa&#xED;da de &#xC1;udio</div>
             <div class="btn-grid audio-btns"></div>
@@ -424,17 +663,18 @@
         <!-- Mouse / Touchpad -->
         <div class="section">
             <div class="section-title">Mouse</div>
-            <div id="touchpad" class="touchpad">Arraste para mover o mouse</div>
+            <div id="touchpad" class="touchpad">
+                <div class="touchpad-hint">arraste para mover<br><span style="opacity:.5;font-size:.85em">tap r&#xE1;pido = clique esquerdo</span></div>
+            </div>
             <div class="mouse-btns">
                 <button class="btn" onclick="mouseClick('left')">&#x1F5B1; Clique</button>
                 <button class="btn" onclick="mouseScroll(3)">&#x2B06; Scroll</button>
                 <button class="btn" onclick="mouseScroll(-3)">&#x2B07; Scroll</button>
-                <button class="btn" onclick="mouseClick('right')">Direito</button>
+                <button class="btn" onclick="mouseClick('right')">Dir. &#x2192;</button>
             </div>
-            <div class="mouse-hint">Tap r&#xE1;pido no touchpad = clique esquerdo</div>
         </div>
 
-        <!-- Media Controls -->
+        <!-- Mídia -->
         <div class="section">
             <div class="section-title">M&#xED;dia</div>
             <div class="media-row">
@@ -448,9 +688,10 @@
         <div class="section">
             <div class="section-title">Texto para Fala</div>
             <div class="tts-row">
-                <input type="text" class="tts-input" id="ttsInput" placeholder="Digite algo para o PC falar..."
+                <input type="text" class="tts-input" id="ttsInput"
+                       placeholder="_ diga algo ao PC..."
                        onkeypress="if(event.key==='Enter') sendTTS()">
-                <button class="tts-send" onclick="sendTTS()">Falar</button>
+                <button class="tts-send" onclick="sendTTS()">falar</button>
             </div>
         </div>
 
@@ -484,7 +725,10 @@
                 </button>
             </div>
         </div>
-    </div>
+
+        <div class="footer">PC_CONTROL &mdash; v2 &mdash; sistema operacional</div>
+
+    </div><!-- /container -->
 
     <!-- Toast -->
     <div class="toast" id="toast"></div>
@@ -493,7 +737,7 @@
         const API = window.location.origin;
         let currentMAC = null;
 
-        // ===== API Calls =====
+        // ── API ──────────────────────────────────────────────────────
 
         async function cmd(command, params = {}) {
             try {
@@ -501,19 +745,19 @@
                     ? `${API}/api/webhook/${currentMAC}/${command}`
                     : `${API}/api/command/${command}`;
 
-                const res = await fetch(url, {
+                const res  = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(params)
                 });
                 const data = await res.json();
                 if (data.success) {
-                    toast(`${command} enviado`);
+                    toast(command + ' enviado');
                 } else {
-                    toast(data.error || 'Erro', true);
+                    toast(data.error || 'erro', true);
                 }
-            } catch (e) {
-                toast('Erro de conexao', true);
+            } catch {
+                toast('erro de conexao', true);
             }
         }
 
@@ -532,14 +776,11 @@
 
         function sendTTS() {
             const input = document.getElementById('ttsInput');
-            const text = input.value.trim();
-            if (text) {
-                cmd('tts', { text });
-                input.value = '';
-            }
+            const text  = input.value.trim();
+            if (text) { cmd('tts', { text }); input.value = ''; }
         }
 
-        // ===== Mouse / Touchpad =====
+        // ── Touchpad ─────────────────────────────────────────────────
 
         const SENSITIVITY = 1.8;
         const SEND_MS = 30;
@@ -592,11 +833,11 @@
 
         touchpad.addEventListener('pointercancel', () => { ptX = ptY = null; });
 
-        function mouseClick(btn)  { cmd('mouse-click', { button: btn }); }
-        function mouseScroll(d)   { cmd('mouse-scroll', { delta: d }); }
-        function switchAudio(el)  { cmd('set-audio-device', { device: el.dataset.dev }); }
+        function mouseClick(btn) { cmd('mouse-click', { button: btn }); }
+        function mouseScroll(d)  { cmd('mouse-scroll', { delta: d }); }
+        function switchAudio(el) { cmd('set-audio-device', { device: el.dataset.dev }); }
 
-        // ===== Data Loading =====
+        // ── Data Loading ─────────────────────────────────────────────
 
         async function loadPCs() {
             try {
@@ -610,20 +851,20 @@
                 if (pcs.length > 0 && pcs[0].online) {
                     currentMAC = pcs[0].macAddress;
                     dot.className = 'dot online';
-                    text.textContent = 'Online';
-                    name.textContent = `- ${pcs[0].hostname}`;
+                    text.textContent = 'online';
+                    name.textContent = '— ' + pcs[0].hostname.toLowerCase();
                     enableButtons(true);
                     loadSystemInfo();
                     loadAudioDevices();
                 } else {
                     currentMAC = pcs.length > 0 ? pcs[0].macAddress : null;
                     dot.className = 'dot';
-                    text.textContent = pcs.length > 0 ? 'Offline' : 'Sem PC';
+                    text.textContent = pcs.length > 0 ? 'offline' : 'sem pc';
                     name.textContent = '';
                     enableButtons(false);
                 }
-            } catch (e) {
-                document.getElementById('statusText').textContent = 'Servidor offline';
+            } catch {
+                document.getElementById('statusText').textContent = 'servidor offline';
             }
         }
 
@@ -641,7 +882,6 @@
                     colorCode('cpuVal', info.cpu);
                     colorCode('ramVal', info.ram_percent);
 
-                    // Discos dinâmicos
                     const container = document.getElementById('diskCards');
                     const disks = info.disks || [{
                         mount: 'C:\\',
@@ -651,7 +891,7 @@
                     }];
 
                     container.innerHTML = disks.map((d, i) => {
-                        const letter = d.mount.replace(':\\', '').replace('/', '').toUpperCase() || String.fromCharCode(67 + i);
+                        const letter = d.mount.replace(':\\','').replace('/','').toUpperCase() || String.fromCharCode(67 + i);
                         const id = `diskVal${i}`;
                         return `<div class="sysinfo-card">
                             <div class="label">Disco ${letter}:</div>
@@ -662,7 +902,7 @@
 
                     disks.forEach((d, i) => colorCode(`diskVal${i}`, d.percent));
                 }
-            } catch (e) {}
+            } catch {}
         }
 
         async function loadAudioDevices() {
@@ -681,12 +921,12 @@
                         return `<button class="btn" data-dev="${safe}" onclick="switchAudio(this)">${label}</button>`;
                     }).join('');
                 }
-            } catch (e) {}
+            } catch {}
         }
 
         function shortAudioName(name) {
-            if (/G435/i.test(name))  return '&#x1F3A7; G435';
-            if (/Echo/i.test(name))  return '&#x1F50A; Echo';
+            if (/G435/i.test(name))       return '&#x1F3A7; G435';
+            if (/Echo/i.test(name))       return '&#x1F50A; Echo';
             if (/NVIDIA|24G/i.test(name)) return '&#x1F4FA; Monitor';
             return name.length > 14 ? name.slice(0, 13) + '…' : name;
         }
@@ -694,27 +934,27 @@
         function colorCode(id, value) {
             const el = document.getElementById(id);
             if (!el) return;
-            if (value > 85) el.style.color = 'var(--danger)';
-            else if (value > 60) el.style.color = 'var(--warning)';
-            else el.style.color = 'var(--success)';
+            el.style.color = value > 85 ? 'var(--red)'
+                           : value > 60 ? 'var(--amber)'
+                           : 'var(--green)';
         }
 
         function enableButtons(enabled) {
-            document.querySelectorAll('.btn, .vol-btn, .media-btn, .app-btn, .tts-send').forEach(btn => {
-                btn.disabled = !enabled;
-            });
+            document.querySelectorAll(
+                '.btn, .vol-btn, .media-btn, .app-btn, .tts-send'
+            ).forEach(btn => { btn.disabled = !enabled; });
         }
 
-        // ===== Toast =====
+        // ── Toast ─────────────────────────────────────────────────────
 
         function toast(msg, isError = false) {
             const el = document.getElementById('toast');
             el.textContent = msg;
-            el.className = 'toast show' + (isError ? ' error' : '');
-            setTimeout(() => el.className = 'toast', 2500);
+            el.className   = 'toast show' + (isError ? ' error' : '');
+            setTimeout(() => { el.className = 'toast'; }, 2500);
         }
 
-        // ===== Init =====
+        // ── Init ──────────────────────────────────────────────────────
 
         loadPCs();
         setInterval(loadPCs, 5000);
