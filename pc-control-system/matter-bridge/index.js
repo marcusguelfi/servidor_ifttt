@@ -8,13 +8,14 @@ import { DimmableLightDevice } from "@matter/main/devices/dimmable-light";
 import { BridgedDeviceBasicInformationServer } from "@matter/main/behaviors/bridged-device-basic-information";
 import { IdentifyServer } from "@matter/main/behaviors/identify";
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+import qrcode from "qrcode-terminal";
 
 // Suprime o WARN "triggerEffect: Throws unimplemented exception" em cada device
 class QuietIdentifyServer extends IdentifyServer {
     async triggerEffect() {}
 }
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SERVER_URL = process.env.SERVER_URL || "http://localhost:3000";
@@ -127,8 +128,16 @@ async function main() {
         console.log("║          MATTER BRIDGE — PRONTO PARA PAREAR       ║");
         console.log("╚═══════════════════════════════════════════════════╝");
         console.log("");
-        console.log("QR Code string (cole em https://project-chip.github.io/connectedhomeip/qrcode.html):");
-        console.log(qrPairingCode);
+
+        if (qrPairingCode) {
+            console.log("▼ Escaneie o QR Code abaixo com o app Alexa/Google Home:");
+            qrcode.generate(qrPairingCode, { small: true });
+            console.log("QR Code string:", qrPairingCode);
+            console.log("(ou cole em: https://project-chip.github.io/connectedhomeip/qrcode.html)");
+        } else {
+            console.log("[AVISO] qrPairingCode não disponível. Tente reiniciar o bridge.");
+        }
+
         console.log("");
         console.log(`Código manual: ${manualPairingCode}`);
         console.log("");
