@@ -19,7 +19,7 @@ class QuietIdentifyServer extends IdentifyServer {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SERVER_URL = process.env.SERVER_URL || "http://localhost:3000";
-const devices = JSON.parse(readFileSync(join(__dirname, "devices.json"), "utf8"));
+const staticDevices = JSON.parse(readFileSync(join(__dirname, "devices.json"), "utf8"));
 
 async function callApi(command, params = {}) {
     const url = `${SERVER_URL}/api/command/${command}`;
@@ -35,9 +35,32 @@ async function callApi(command, params = {}) {
     }
 }
 
+// Busca lista de áudio devices do servidor e gera entradas Matter dinamicamente.
+// Se o PC client ainda não conectou, retorna array vazio (sem travar a inicialização).
+async function loadAudioDevices() {
+    try {
+        const res = await fetch(`${SERVER_URL}/api/audio-devices`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const audioDevs = await res.json();
+        if (!Array.isArray(audioDevs) || audioDevs.length === 0) return [];
+        console.log(`[Bridge] Áudio devices detectados: ${audioDevs.map(d => d.name).join(", ")}`);
+        return audioDevs.map(d => ({
+            name: d.name.length > 50 ? d.name.substring(0, 50) : d.name,
+            command: "set-audio-device",
+            params: { device: d.name },
+        }));
+    } catch (err) {
+        console.warn(`[Bridge] Áudio devices não disponíveis no momento: ${err.message}`);
+        return [];
+    }
+}
+
 async function main() {
     // Persist commissioning data across restarts
     Environment.default.vars.set("path.root", "/data");
+
+    const audioDeviceEntries = await loadAudioDevices();
+    const devices = [...staticDevices, ...audioDeviceEntries];
 
     const server = await ServerNode.create({
         id: "pc-matter-bridge",
