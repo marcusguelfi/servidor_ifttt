@@ -155,7 +155,7 @@ app.get('/api/system-info/:macAddress', (req, res) => {
   }
 });
 
-// Audio devices
+// Audio devices por MAC
 app.get('/api/devices/:macAddress', (req, res) => {
   const devices = audioDevicesCache.get(req.params.macAddress);
   if (devices) {
@@ -163,6 +163,14 @@ app.get('/api/devices/:macAddress', (req, res) => {
   } else {
     res.json([]);
   }
+});
+
+// Audio devices do primeiro PC conectado (usado pelo matter-bridge para descoberta dinâmica)
+app.get('/api/audio-devices', (req, res) => {
+  const mac = getFirstMAC();
+  if (!mac) return res.json([]);
+  const devices = audioDevicesCache.get(mac) || [];
+  res.json(devices);
 });
 
 // Webhook genérico (com MAC)
