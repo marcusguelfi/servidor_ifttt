@@ -16,9 +16,6 @@
   { "name": "Tela Cheia",              "command": "fullscreen" },
   { "name": "Mutar PC",                "command": "mute" },
   { "name": "Play PC",                 "command": "media-play-pause" },
-  { "name": "Alterar para Fone",       "command": "set-audio-device", "params": { "device": "G435" } },
-  { "name": "Alterar para Caixa",      "command": "set-audio-device", "params": { "device": "Echo Pop" } },
-  { "name": "Alterar para Monitor",    "command": "set-audio-device", "params": { "device": "NVIDIA" } },
   { "name": "Volume do PC",            "command": "set-volume", "type": "dimmer" },
   { "name": "Dizer sim ao Claude",     "command": "claude-yes" }
 ]
