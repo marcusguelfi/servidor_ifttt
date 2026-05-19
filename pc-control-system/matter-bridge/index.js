@@ -7,18 +7,21 @@ import { OnOffPlugInUnitDevice } from "@matter/main/devices/on-off-plug-in-unit"
 import { DimmableLightDevice } from "@matter/main/devices/dimmable-light";
 import { BridgedDeviceBasicInformationServer } from "@matter/main/behaviors/bridged-device-basic-information";
 import { IdentifyServer } from "@matter/main/behaviors/identify";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import qrcode from "qrcode-terminal";
 
-// Suprime o WARN "triggerEffect: Throws unimplemented exception" em cada device
 class QuietIdentifyServer extends IdentifyServer {
     async triggerEffect() {}
 }
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SERVER_URL = process.env.SERVER_URL || "http://localhost:3000";
+const AUDIO_CACHE_PATH = "/data/audio-devices-cache.json";
+const AUDIO_WAIT_TIMEOUT_MS = 60_000;  // espera até 60s pelo PC conectar
+const AUDIO_POLL_INTERVAL_MS = 3_000;
+
 const staticDevices = JSON.parse(readFileSync(join(__dirname, "devices.json"), "utf8"));
 
 async function callApi(command, params = {}) {
@@ -35,28 +38,69 @@ async function callApi(command, params = {}) {
     }
 }
 
-// Busca lista de áudio devices do servidor e gera entradas Matter dinamicamente.
-// Se o PC client ainda não conectou, retorna array vazio (sem travar a inicialização).
-async function loadAudioDevices() {
+function loadCachedAudioDevices() {
     try {
-        const res = await fetch(`${SERVER_URL}/api/audio-devices`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const audioDevs = await res.json();
-        if (!Array.isArray(audioDevs) || audioDevs.length === 0) return [];
-        console.log(`[Bridge] Áudio devices detectados: ${audioDevs.map(d => d.name).join(", ")}`);
-        return audioDevs.map(d => ({
-            name: d.name.length > 50 ? d.name.substring(0, 50) : d.name,
-            command: "set-audio-device",
-            params: { device: d.name },
-        }));
+        if (existsSync(AUDIO_CACHE_PATH)) {
+            const cached = JSON.parse(readFileSync(AUDIO_CACHE_PATH, "utf8"));
+            if (Array.isArray(cached) && cached.length > 0) return cached;
+        }
+    } catch (_) {}
+    return null;
+}
+
+function saveCachedAudioDevices(devices) {
+    try {
+        writeFileSync(AUDIO_CACHE_PATH, JSON.stringify(devices, null, 2), "utf8");
     } catch (err) {
-        console.warn(`[Bridge] Áudio devices não disponíveis no momento: ${err.message}`);
-        return [];
+        console.warn(`[Bridge] Não foi possível salvar cache de áudio: ${err.message}`);
     }
 }
 
+// Tenta buscar audio devices do servidor.
+// Aguarda até AUDIO_WAIT_TIMEOUT_MS pelo PC client conectar, fazendo polling.
+// Se o tempo esgotar, usa o cache em disco da última execução.
+async function loadAudioDevices() {
+    const deadline = Date.now() + AUDIO_WAIT_TIMEOUT_MS;
+    let attempt = 0;
+
+    while (Date.now() < deadline) {
+        attempt++;
+        try {
+            const res = await fetch(`${SERVER_URL}/api/audio-devices`);
+            if (res.ok) {
+                const audioDevs = await res.json();
+                if (Array.isArray(audioDevs) && audioDevs.length > 0) {
+                    console.log(`[Bridge] Áudio devices detectados (tentativa ${attempt}): ${audioDevs.map(d => d.name).join(", ")}`);
+                    const entries = audioDevs.map(d => ({
+                        name: d.name.length > 50 ? d.name.substring(0, 50) : d.name,
+                        command: "set-audio-device",
+                        params: { device: d.name },
+                    }));
+                    saveCachedAudioDevices(entries);
+                    return entries;
+                }
+            }
+        } catch (_) {}
+
+        const remaining = Math.round((deadline - Date.now()) / 1000);
+        if (remaining > 0) {
+            console.log(`[Bridge] PC client ainda não conectou — aguardando... (${remaining}s restantes)`);
+            await new Promise(r => setTimeout(r, AUDIO_POLL_INTERVAL_MS));
+        }
+    }
+
+    // Timeout: tenta usar cache do disco
+    const cached = loadCachedAudioDevices();
+    if (cached) {
+        console.warn(`[Bridge] Timeout aguardando PC. Usando ${cached.length} device(s) em cache.`);
+        return cached;
+    }
+
+    console.warn("[Bridge] Nenhum áudio device disponível. Iniciando sem devices de áudio.");
+    return [];
+}
+
 async function main() {
-    // Persist commissioning data across restarts
     Environment.default.vars.set("path.root", "/data");
 
     const audioDeviceEntries = await loadAudioDevices();
