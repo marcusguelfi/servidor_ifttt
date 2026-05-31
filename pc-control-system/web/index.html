@@ -533,9 +533,105 @@
             .timer-grid { grid-template-columns: repeat(2, 1fr); }
             .app-grid { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }
         }
+
+        /* ── Auth Overlay ──────────────────────────────────────────── */
+        .auth-overlay {
+            position: fixed; inset: 0;
+            background: var(--bg);
+            background-image: repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.12) 3px,rgba(0,0,0,.12) 4px);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 9999;
+        }
+        .auth-box {
+            width: 100%; max-width: 340px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--green);
+            border-radius: var(--radius);
+            padding: 32px 28px;
+            display: flex; flex-direction: column; gap: 12px;
+        }
+        .auth-logo {
+            font-family: var(--font-vt); font-size: 2em; letter-spacing: 3px;
+            color: var(--green); text-shadow: 0 0 16px var(--green);
+            margin-bottom: 4px;
+        }
+        .auth-subtitle {
+            font-size: 0.65em; color: var(--text-dim); text-transform: uppercase;
+            letter-spacing: 2px; margin-bottom: 6px;
+        }
+        .auth-error {
+            font-size: 0.75em; color: var(--red); min-height: 18px;
+        }
+        .auth-input {
+            background: var(--surface2); color: var(--text-bright);
+            border: 1px solid var(--border); padding: 10px 12px;
+            border-radius: var(--radius); font-family: var(--font-mono);
+            font-size: 0.82em; outline: none;
+            transition: border-color .2s, box-shadow .2s;
+        }
+        .auth-input::placeholder { color: var(--text-dim); font-style: italic; }
+        .auth-input:focus { border-color: var(--green); box-shadow: 0 0 8px rgba(0,229,52,.15); }
+        .auth-btn {
+            background: var(--green-glow); color: var(--green);
+            border: 1px solid rgba(0,229,52,.4); padding: 11px;
+            border-radius: var(--radius); cursor: pointer;
+            font-family: var(--font-mono); font-size: 0.85em; font-weight: 700;
+            letter-spacing: 1px; text-transform: uppercase;
+            transition: background .15s, border-color .15s, box-shadow .15s;
+            margin-top: 4px;
+        }
+        .auth-btn:hover { background: rgba(0,229,52,.2); border-color: var(--green); box-shadow: 0 0 12px rgba(0,229,52,.25); }
+        .auth-toggle { font-size: 0.72em; color: var(--text-dim); text-align: center; }
+        .auth-toggle span { color: var(--green); cursor: pointer; text-decoration: underline; }
+
+        /* ── Header user row ───────────────────────────────────────── */
+        .header-user {
+            display: flex; align-items: center; gap: 10px;
+            margin-top: 8px; flex-wrap: wrap;
+        }
+        .header-username { font-size: 0.72em; color: var(--green); opacity: .9; }
+        .header-action-btn {
+            background: none; color: var(--text-dim);
+            border: 1px solid var(--border); padding: 3px 10px;
+            border-radius: var(--radius); cursor: pointer;
+            font-family: var(--font-mono); font-size: 0.65em;
+            transition: color .15s, border-color .15s;
+        }
+        .header-action-btn:hover { color: var(--green); border-color: var(--green); }
+        .header-action-btn.logout { color: var(--red); border-color: rgba(255,60,60,.3); }
+        .header-action-btn.logout:hover { border-color: var(--red); }
+
+        /* ── Matter section ────────────────────────────────────────── */
+        .matter-status { font-size: 0.8em; color: var(--text); line-height: 1.6; }
+        .matter-qr {
+            background: var(--surface2); border: 1px solid var(--border);
+            padding: 10px 12px; border-radius: var(--radius);
+            font-family: var(--font-mono); font-size: 0.72em;
+            word-break: break-all; color: var(--amber);
+            margin: 8px 0;
+        }
+        .matter-commissioned { color: var(--green); }
     </style>
 </head>
 <body>
+    <!-- Login / Register Overlay -->
+    <div class="auth-overlay" id="authOverlay">
+        <div class="auth-box">
+            <div class="auth-logo">&gt; PC_CONTROL</div>
+            <div class="auth-subtitle" id="authSubtitle">login</div>
+            <div class="auth-error" id="authError"></div>
+            <input type="text"     class="auth-input" id="authUser" placeholder="_ username" autocomplete="username">
+            <input type="password" class="auth-input" id="authPass" placeholder="_ senha"
+                   autocomplete="current-password"
+                   onkeypress="if(event.key==='Enter') submitAuth()">
+            <button class="auth-btn" onclick="submitAuth()" id="authBtn">entrar</button>
+            <div class="auth-toggle" id="authToggle">
+                n&#xE3;o tem conta? <span onclick="toggleAuthMode()">registrar</span>
+            </div>
+        </div>
+    </div>
+
     <div class="container">
 
         <!-- Header -->
@@ -548,6 +644,11 @@
                 <span class="dot" id="statusDot"></span>
                 <span id="statusText">conectando...</span>
                 <span id="pcName"></span>
+            </div>
+            <div class="header-user" id="headerUser">
+                <span class="header-username" id="headerUsername"></span>
+                <button class="header-action-btn" onclick="downloadClient()">&#x2B07; client</button>
+                <button class="header-action-btn logout" onclick="logout()">sair</button>
             </div>
         </div>
 
@@ -631,6 +732,12 @@
                 </button>
                 <button class="btn" onclick="cmd('video-fullscreen')">
                     <span class="icon">&#x1F3A5;</span>Vídeo Full
+                </button>
+                <button class="btn success" onclick="cmd('game-mode')">
+                    <span class="icon">&#x1F3AE;</span>Modo Gamer
+                </button>
+                <button class="btn" onclick="cmd('dev-mode')">
+                    <span class="icon">&#x1F4BB;</span>Modo Dev
                 </button>
             </div>
         </div>
@@ -726,7 +833,19 @@
             </div>
         </div>
 
-        <div class="footer">PC_CONTROL &mdash; v2 &mdash; sistema operacional</div>
+        <!-- Alexa / Matter Bridge -->
+        <div class="section">
+            <div class="section-title">Alexa / Matter</div>
+            <div id="matterStatus" class="matter-status">
+                <span style="color:var(--text-dim);font-size:0.8em">carregando status...</span>
+            </div>
+            <div class="btn-grid" style="margin-top:10px">
+                <button class="btn warning" onclick="resetMatter()">&#x21BB; Resetar Commissioning</button>
+                <button class="btn" onclick="loadMatterStatus()">&#x21BA; Atualizar</button>
+            </div>
+        </div>
+
+        <div class="footer">PC_CONTROL &mdash; v3 &mdash; multi-usuario</div>
 
     </div><!-- /container -->
 
@@ -735,7 +854,101 @@
 
     <script>
         const API = window.location.origin;
-        let currentMAC = null;
+        let currentMAC  = null;
+        let userToken   = localStorage.getItem('pc_token')    || '';
+        let currentUser = localStorage.getItem('pc_username') || '';
+        let authMode    = 'login'; // 'login' | 'register'
+
+        // ── Auth headers helper ───────────────────────────────────────
+
+        function authHeaders(extra = {}) {
+            const h = { 'Content-Type': 'application/json', ...extra };
+            if (userToken) h['x-user-token'] = userToken;
+            return h;
+        }
+
+        // ── Auth overlay ─────────────────────────────────────────────
+
+        function checkAuth() {
+            const overlay = document.getElementById('authOverlay');
+            const headerUser = document.getElementById('headerUser');
+            if (userToken) {
+                overlay.style.display = 'none';
+                headerUser.style.display = 'flex';
+                document.getElementById('headerUsername').textContent = currentUser;
+            } else {
+                overlay.style.display = 'flex';
+                headerUser.style.display = 'none';
+            }
+        }
+
+        function toggleAuthMode() {
+            authMode = authMode === 'login' ? 'register' : 'login';
+            document.getElementById('authSubtitle').textContent = authMode;
+            document.getElementById('authBtn').textContent = authMode === 'login' ? 'entrar' : 'registrar';
+            document.getElementById('authToggle').innerHTML = authMode === 'login'
+                ? 'n&#xE3;o tem conta? <span onclick="toggleAuthMode()">registrar</span>'
+                : 'j&#xE1; tem conta? <span onclick="toggleAuthMode()">login</span>';
+            document.getElementById('authError').textContent = '';
+        }
+
+        async function submitAuth() {
+            const username = document.getElementById('authUser').value.trim();
+            const password = document.getElementById('authPass').value;
+            const errEl    = document.getElementById('authError');
+            errEl.textContent = '';
+            if (!username || !password) { errEl.textContent = 'preencha todos os campos'; return; }
+
+            const endpoint = authMode === 'login' ? '/api/auth/login' : '/api/auth/register';
+            try {
+                const res  = await fetch(`${API}${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    userToken   = data.token;
+                    currentUser = data.username;
+                    localStorage.setItem('pc_token',    userToken);
+                    localStorage.setItem('pc_username', currentUser);
+                    checkAuth();
+                    loadPCs();
+                    loadMatterStatus();
+                } else {
+                    errEl.textContent = data.error || 'erro desconhecido';
+                }
+            } catch {
+                errEl.textContent = 'servidor indisponível';
+            }
+        }
+
+        function logout() {
+            userToken = currentUser = '';
+            localStorage.removeItem('pc_token');
+            localStorage.removeItem('pc_username');
+            currentMAC = null;
+            checkAuth();
+            enableButtons(false);
+            document.getElementById('statusText').textContent = 'deslogado';
+            document.getElementById('pcName').textContent = '';
+        }
+
+        function downloadClient() {
+            const link = document.createElement('a');
+            link.href = `${API}/api/download/client`;
+            link.setAttribute('x-user-token', userToken); // não funciona via <a>, veja abaixo
+            // Fetch com token e forçar download
+            fetch(`${API}/api/download/client`, { headers: authHeaders() })
+                .then(r => r.blob())
+                .then(blob => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url; a.download = 'pc-control-client.zip'; a.click();
+                    URL.revokeObjectURL(url);
+                })
+                .catch(() => toast('erro ao baixar client', true));
+        }
 
         // ── API ──────────────────────────────────────────────────────
 
@@ -747,7 +960,7 @@
 
                 const res  = await fetch(url, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: authHeaders(),
                     body: JSON.stringify(params)
                 });
                 const data = await res.json();
@@ -796,7 +1009,7 @@
                     : `${API}/api/command/mouse-move`;
                 fetch(url, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: authHeaders(),
                     body: JSON.stringify({ dx: Math.round(pendingDX), dy: Math.round(pendingDY) })
                 }).catch(() => {});
                 pendingDX = pendingDY = 0;
@@ -837,11 +1050,55 @@
         function mouseScroll(d)  { cmd('mouse-scroll', { delta: d }); }
         function switchAudio(el) { cmd('set-audio-device', { device: el.dataset.dev }); }
 
+        // ── Matter Status ─────────────────────────────────────────────
+
+        async function loadMatterStatus() {
+            const el = document.getElementById('matterStatus');
+            try {
+                const res  = await fetch(`${API}/api/matter/status`, { headers: authHeaders() });
+                const data = await res.json();
+                if (data.error) {
+                    el.innerHTML = `<span style="color:var(--text-dim)">bridge n&#xE3;o dispon&#xED;vel (inicie o container matter-bridge)</span>`;
+                    return;
+                }
+                if (data.commissioned) {
+                    el.innerHTML = `<span class="matter-commissioned">&#x2713; Comissionado — dispositivos dispon&#xED;veis na Alexa</span>`;
+                } else {
+                    const qr = data.qrCode || '';
+                    const manual = data.manualCode || '';
+                    el.innerHTML = `
+                        <div style="margin-bottom:6px">&#x26A0; <b>N&#xE3;o comissionado</b> — pareie com a Alexa:</div>
+                        <div style="font-size:0.75em;color:var(--text-dim);margin-bottom:4px">1. Abra o app Alexa → Dispositivos → + → Adicionar → Matter</div>
+                        <div style="font-size:0.75em;color:var(--text-dim);margin-bottom:6px">2. Escaneie o QR ou use o c&#xF3;digo manual</div>
+                        ${qr ? `<div class="matter-qr">${qr}</div>
+                        <div style="font-size:0.72em;color:var(--text-dim);margin-bottom:4px">
+                            <a href="https://project-chip.github.io/connectedhomeip/qrcode.html" target="_blank" style="color:var(--green)">Gerar QR visual &#x2197;</a>
+                            &nbsp;(cole a string acima)
+                        </div>` : ''}
+                        ${manual ? `<div style="font-size:0.8em">C&#xF3;digo manual: <b style="color:var(--amber)">${manual}</b></div>` : ''}`;
+                }
+            } catch {
+                el.innerHTML = `<span style="color:var(--text-dim)">status indispon&#xED;vel</span>`;
+            }
+        }
+
+        async function resetMatter() {
+            if (!confirm('Resetar commissioning? Você precisará parear novamente com a Alexa.')) return;
+            try {
+                const res  = await fetch(`${API}/api/matter/reset`, { method: 'POST', headers: authHeaders() });
+                const data = await res.json();
+                toast(data.message || 'reset enviado');
+                setTimeout(loadMatterStatus, 3000);
+            } catch {
+                toast('erro ao resetar', true);
+            }
+        }
+
         // ── Data Loading ─────────────────────────────────────────────
 
         async function loadPCs() {
             try {
-                const res = await fetch(`${API}/api/pcs`);
+                const res = await fetch(`${API}/api/pcs`, { headers: authHeaders() });
                 const pcs = await res.json();
 
                 const dot  = document.getElementById('statusDot');
@@ -871,7 +1128,7 @@
         async function loadSystemInfo() {
             if (!currentMAC) return;
             try {
-                const res  = await fetch(`${API}/api/system-info/${currentMAC}`);
+                const res  = await fetch(`${API}/api/system-info/${currentMAC}`, { headers: authHeaders() });
                 const info = await res.json();
 
                 if (info.cpu !== undefined) {
@@ -908,7 +1165,7 @@
         async function loadAudioDevices() {
             if (!currentMAC) return;
             try {
-                const res     = await fetch(`${API}/api/devices/${currentMAC}`);
+                const res     = await fetch(`${API}/api/devices/${currentMAC}`, { headers: authHeaders() });
                 const devices = await res.json();
 
                 if (devices.length > 0) {
@@ -956,8 +1213,12 @@
 
         // ── Init ──────────────────────────────────────────────────────
 
-        loadPCs();
-        setInterval(loadPCs, 5000);
+        checkAuth();
+        if (userToken) {
+            loadPCs();
+            loadMatterStatus();
+        }
+        setInterval(() => { if (userToken) loadPCs(); }, 5000);
     </script>
 </body>
 </html>

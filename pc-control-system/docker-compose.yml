@@ -16,6 +16,10 @@ services:
       - PORT=3000
       - DATA_PATH=/data
       - API_KEY=${API_KEY:-}
+      # URL WebSocket que os clientes usam para conectar (incluída no zip de download)
+      - CLIENT_WS_URL=${CLIENT_WS_URL:-ws://192.168.0.225:3000}
+      # Porta do management HTTP da matter-bridge (deve bater com MGMT_PORT abaixo)
+      - MATTER_MGMT_PORT=5541
     networks:
       - pc-control-network
 
@@ -31,6 +35,10 @@ services:
       - pc-control-server
     environment:
       - SERVER_URL=http://localhost:3000
+      # MAC address do PC principal dono desta bridge
+      # Obtenha no web UI após conectar o cliente, ou via: python -c "import uuid; print(':'.join(['{:02x}'.format((uuid.getnode()>>e)&0xff) for e in range(0,12,2)][::-1]))"
+      - DEFAULT_MAC=${PC_DEFAULT_MAC:-}
+      - MGMT_PORT=5541
     volumes:
       - matter-bridge-data:/data
 

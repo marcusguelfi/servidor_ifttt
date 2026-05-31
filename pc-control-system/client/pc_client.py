@@ -1,90 +1,65 @@
 """
 PC Control Client
-Cliente para Windows que executa comandos remotos via WebSocket
+Cliente para Windows que executa comandos remotos via WebSocket.
+Configuração em config.json (gerado pelo install.bat).
 """
 
 import sys
 import asyncio
-import websockets
 import json
 import os
-import subprocess
 import socket
 import uuid
-import ctypes
-import winreg
-import comtypes
-from comtypes import CLSCTX_ALL, GUID, IUnknown, COMMETHOD
-from ctypes import cast, POINTER, HRESULT, c_uint, c_void_p, c_int, c_wchar_p
-from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
-import psutil
-import pyautogui
-import tempfile
-from playsound import playsound
 
-# Necessário para mouse-move funcionar sem travamento nos cantos e sem atraso entre chamadas
+import websockets
+import psutil
+
+# Pyautogui sem failsafe e sem pausa entre chamadas (mouse-move contínuo)
+import pyautogui
 pyautogui.FAILSAFE = False
 pyautogui.PAUSE = 0
 
-# IPolicyConfig - Interface COM nativa do Windows para mudar dispositivo de áudio padrão
-# GUIDs: https://github.com/tartakynov/audioswitch/blob/master/IPolicyConfig.h
-_POLICY_CONFIG_METHODS = [
-    COMMETHOD([], HRESULT, 'GetMixFormat',
-              (['in'], c_wchar_p), (['in'], c_void_p)),
-    COMMETHOD([], HRESULT, 'GetDeviceFormat',
-              (['in'], c_wchar_p), (['in'], c_int), (['in'], c_void_p)),
-    COMMETHOD([], HRESULT, 'ResetDeviceFormat',
-              (['in'], c_wchar_p)),
-    COMMETHOD([], HRESULT, 'SetDeviceFormat',
-              (['in'], c_wchar_p), (['in'], c_void_p), (['in'], c_void_p)),
-    COMMETHOD([], HRESULT, 'GetProcessingPeriod',
-              (['in'], c_wchar_p), (['in'], c_int), (['in'], c_void_p), (['in'], c_void_p)),
-    COMMETHOD([], HRESULT, 'SetProcessingPeriod',
-              (['in'], c_wchar_p), (['in'], c_void_p)),
-    COMMETHOD([], HRESULT, 'GetShareMode',
-              (['in'], c_wchar_p), (['in'], c_void_p)),
-    COMMETHOD([], HRESULT, 'SetShareMode',
-              (['in'], c_wchar_p), (['in'], c_uint)),
-    COMMETHOD([], HRESULT, 'GetPropertyValue',
-              (['in'], c_wchar_p), (['in'], c_int), (['in'], c_void_p), (['in'], c_void_p)),
-    COMMETHOD([], HRESULT, 'SetPropertyValue',
-              (['in'], c_wchar_p), (['in'], c_int), (['in'], c_void_p), (['in'], c_void_p)),
-    COMMETHOD([], HRESULT, 'SetDefaultEndpoint',
-              (['in'], c_wchar_p, 'wszDeviceId'), (['in'], c_uint, 'eRole')),
-    COMMETHOD([], HRESULT, 'SetEndpointVisibility',
-              (['in'], c_wchar_p), (['in'], c_int)),
-]
+# Carregar registry de comandos
+from commands import COMMANDS, load_all
+load_all()
 
-class _IPolicyConfig(IUnknown):
-    _iid_ = GUID('{f8679f50-850a-41cf-9c72-430f290290c8}')  # Win7/8
-    _methods_ = _POLICY_CONFIG_METHODS
+# ──────────────────────────────────────────────
+# Configuração (config.json ao lado deste arquivo)
+# ──────────────────────────────────────────────
+_CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.json")
 
-class _IPolicyConfigVista(IUnknown):
-    _iid_ = GUID('{568b9108-44bf-40b4-9006-86afe5b5a620}')  # Win10/11
-    _methods_ = _POLICY_CONFIG_METHODS
+def _load_config() -> dict:
+    if os.path.exists(_CONFIG_PATH):
+        with open(_CONFIG_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
 
-_CLSID_PolicyConfigClient = GUID('{870af99c-171d-4f9e-af0d-e63df40c2bc9}')
-
-
-# Configurações
-SERVER_URL = "ws://192.168.0.225:3000"
+_config = _load_config()
+SERVER_URL     = _config.get("server_url", "ws://192.168.0.225:3000")
+USER_TOKEN     = _config.get("user_token", "")
 RECONNECT_DELAY = 5
 
 
+# ──────────────────────────────────────────────
+# Cliente principal
+# ──────────────────────────────────────────────
+
 class PCControlClient:
     def __init__(self):
-        self.mac_address = self.get_mac_address()
-        self.hostname = socket.gethostname()
-        self.ip = self.get_ip()
-        self.shutdown_task = None
-        self.tts_engine = None
+        self.mac_address   = self._get_mac_address()
+        self.hostname      = socket.gethostname()
+        self.ip            = self._get_ip()
+        self.shutdown_task = None   # usado por commands/system.py
 
-    def get_mac_address(self):
-        mac = ':'.join(['{:02x}'.format((uuid.getnode() >> elements) & 0xff)
-                       for elements in range(0, 2*6, 2)][::-1])
-        return mac
+    # ── identificação ──
 
-    def get_ip(self):
+    def _get_mac_address(self) -> str:
+        return ':'.join([
+            '{:02x}'.format((uuid.getnode() >> e) & 0xff)
+            for e in range(0, 2 * 6, 2)
+        ][::-1])
+
+    def _get_ip(self) -> str:
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             s.connect(("8.8.8.8", 80))
@@ -94,51 +69,43 @@ class PCControlClient:
         except Exception:
             return "127.0.0.1"
 
-    def get_audio_devices(self):
-        """Lista apenas dispositivos de áudio de saída ativos"""
+    # ── dados do sistema ──
+
+    def get_audio_devices(self) -> list:
         devices = []
         try:
-            # data_flow=0 (eRender = só saídas), device_state=1 (ACTIVE)
-            active_outputs = AudioUtilities.GetAllDevices(data_flow=0, device_state=1)
-            for i, dev in enumerate(active_outputs):
+            from pycaw.pycaw import AudioUtilities
+            for i, dev in enumerate(AudioUtilities.GetAllDevices(data_flow=0, device_state=1)):
                 if dev.FriendlyName:
-                    devices.append({
-                        "index": i,
-                        "name": dev.FriendlyName,
-                        "id": dev.id
-                    })
+                    devices.append({"index": i, "name": dev.FriendlyName, "id": dev.id})
         except Exception as e:
             print(f"Erro ao listar devices: {e}")
         return devices
 
-    def get_system_info(self):
-        """Retorna info do sistema"""
+    def get_system_info(self) -> dict:
         try:
             cpu = psutil.cpu_percent(interval=0)
             ram = psutil.virtual_memory()
-
             disks = []
             for part in psutil.disk_partitions(all=False):
                 if not part.fstype or 'cdrom' in part.opts:
                     continue
                 try:
-                    usage = psutil.disk_usage(part.mountpoint)
+                    u = psutil.disk_usage(part.mountpoint)
                     disks.append({
                         "mount": part.mountpoint,
-                        "percent": usage.percent,
-                        "used_gb": round(usage.used / (1024**3), 1),
-                        "total_gb": round(usage.total / (1024**3), 1),
+                        "percent": u.percent,
+                        "used_gb": round(u.used / 1024**3, 1),
+                        "total_gb": round(u.total / 1024**3, 1),
                     })
                 except Exception:
                     continue
-
-            # Campos legados (primeiro disco) para retrocompatibilidade
             first = disks[0] if disks else {"percent": 0, "used_gb": 0, "total_gb": 0}
             return {
                 "cpu": cpu,
                 "ram_percent": ram.percent,
-                "ram_used_gb": round(ram.used / (1024**3), 1),
-                "ram_total_gb": round(ram.total / (1024**3), 1),
+                "ram_used_gb": round(ram.used / 1024**3, 1),
+                "ram_total_gb": round(ram.total / 1024**3, 1),
                 "disk_percent": first["percent"],
                 "disk_used_gb": first["used_gb"],
                 "disk_total_gb": first["total_gb"],
@@ -148,539 +115,112 @@ class PCControlClient:
             print(f"Erro ao obter system info: {e}")
             return {}
 
+    # ── heartbeat e feedback ──
+
     async def send_heartbeat(self, websocket):
         while True:
             try:
                 await websocket.send(json.dumps({
-                    'type': 'heartbeat',
-                    'macAddress': self.mac_address,
-                    'ip': self.get_ip(),
-                    'systemInfo': self.get_system_info(),
-                    'audioDevices': self.get_audio_devices()
+                    'type':         'heartbeat',
+                    'macAddress':   self.mac_address,
+                    'token':        USER_TOKEN,
+                    'ip':           self._get_ip(),
+                    'systemInfo':   self.get_system_info(),
+                    'audioDevices': self.get_audio_devices(),
                 }))
                 await asyncio.sleep(10)
             except Exception:
                 break
 
     async def send_feedback(self, websocket, command, success, message=""):
-        """Envia feedback do comando ao servidor"""
         try:
             await websocket.send(json.dumps({
-                'type': 'command-feedback',
+                'type':       'command-feedback',
                 'macAddress': self.mac_address,
-                'command': command,
-                'success': success,
-                'message': message
+                'command':    command,
+                'success':    success,
+                'message':    message,
             }))
         except Exception:
             pass
 
-    async def handle_command(self, command, params, websocket=None):
-        print(f"\n>> Comando recebido: {command}")
-        print(f"   Parametros: {params}")
+    # ── dispatcher de comandos (usa registry) ──
 
+    async def handle_command(self, command, params, websocket=None):
+        print(f"\n>> Comando: {command}  params={params}")
         success = True
         message = "OK"
-
         try:
-            if command == 'shutdown':
-                await self.shutdown_pc(params.get('delay', 0))
-            elif command == 'cancel-shutdown':
-                await self.cancel_shutdown()
-            elif command == 'restart':
-                await self.restart_pc()
-            elif command == 'cinema-mode':
-                await self.cinema_mode()
-            elif command == 'console-mode':
-                await self.console_mode()
-            elif command == 'retro-console':
-                await self.retro_console_mode()
-            elif command == 'night-mode':
-                await self.night_mode()
-            elif command == 'set-volume':
-                await self.set_volume(params.get('volume', 50))
-            elif command == 'mute':
-                await self.toggle_mute()
-            elif command == 'set-audio-device':
-                await self.set_audio_output(params.get('device'))
-            elif command == 'dual-monitor':
-                await self.dual_monitor()
-            elif command == 'open-app':
-                await self.open_application(params.get('app'))
-            elif command == 'lock-pc':
-                await self.lock_pc()
-            elif command == 'sleep':
-                await self.sleep_pc()
-            elif command == 'monitor-off':
-                await self.turn_off_monitor()
-            elif command == 'media-play-pause':
-                await self.media_control('playpause')
-            elif command == 'media-next':
-                await self.media_control('nexttrack')
-            elif command == 'media-prev':
-                await self.media_control('prevtrack')
-            elif command == 'tts':
-                await self.text_to_speech(params.get('text', ''))
-            elif command == 'notification':
-                await self.show_notification(params.get('message', 'Notificação'))
-            elif command == 'fullscreen':
-                pyautogui.press('f11')
-                print("Fullscreen alternado!")
-            elif command == 'video-fullscreen':
-                pyautogui.press('f')
-                print("Video fullscreen alternado!")
-            elif command == 'claude-yes':
-                await self.claude_yes()
-            elif command == 'mouse-move':
-                pyautogui.moveRel(int(params.get('dx', 0)), int(params.get('dy', 0)), duration=0)
-            elif command == 'mouse-click':
-                pyautogui.click(button=params.get('button', 'left'))
-            elif command == 'mouse-scroll':
-                pyautogui.scroll(int(params.get('delta', 3)))
+            handler = COMMANDS.get(command)
+            if handler:
+                await handler(self, params)
             else:
                 print(f"  Comando desconhecido: {command}")
                 success = False
                 message = f"Comando desconhecido: {command}"
-
         except Exception as e:
-            print(f"Erro ao executar comando: {e}")
+            print(f"Erro ao executar '{command}': {e}")
             success = False
             message = str(e)
-
         if websocket:
             await self.send_feedback(websocket, command, success, message)
 
-    # ===== COMANDOS DE SISTEMA =====
-
-    async def shutdown_pc(self, delay_minutes=0):
-        if self.shutdown_task:
-            self.shutdown_task.cancel()
-
-        if delay_minutes > 0:
-            print(f"PC sera desligado em {delay_minutes} minutos...")
-            self.shutdown_task = asyncio.create_task(
-                self._delayed_shutdown(delay_minutes * 60)
-            )
-        else:
-            print("Desligando PC AGORA...")
-            await asyncio.sleep(1)  # aguardar envio do feedback WebSocket
-            os.system("shutdown /s /t 5")
-
-    async def _delayed_shutdown(self, seconds):
-        try:
-            await asyncio.sleep(seconds)
-            print("Executando shutdown...")
-            os.system("shutdown /s /t 5")
-        except asyncio.CancelledError:
-            print("Shutdown cancelado!")
-
-    async def cancel_shutdown(self):
-        if self.shutdown_task:
-            self.shutdown_task.cancel()
-            self.shutdown_task = None
-        os.system("shutdown /a")
-        print("Shutdown cancelado!")
-
-    async def restart_pc(self):
-        print("Reiniciando PC...")
-        os.system("shutdown /r /t 5")
-
-    async def lock_pc(self):
-        print("Bloqueando PC...")
-        ctypes.windll.user32.LockWorkStation()
-
-    async def sleep_pc(self):
-        print("Entrando em modo suspensao...")
-        await asyncio.sleep(1)  # aguardar envio do feedback WebSocket
-        # PowerShell é mais confiável que rundll32 no Windows 10/11
-        subprocess.Popen([
-            "powershell", "-Command",
-            "Add-Type -AssemblyName System.Windows.Forms; "
-            "[System.Windows.Forms.Application]::SetSuspendState('Suspend', $false, $false)"
-        ])
-
-    async def turn_off_monitor(self):
-        print("Desligando monitor...")
-        ctypes.windll.user32.SendMessageW(0xFFFF, 0x0112, 0xF170, 2)
-
-    # ===== MODOS =====
-
-    def _find_window_by_title(self, partial):
-        """Busca janela visível cujo título contém 'partial' (case-insensitive). Retorna HWND ou None."""
-        result = []
-        user32 = ctypes.windll.user32
-
-        def callback(hwnd, _):
-            if user32.IsWindowVisible(hwnd):
-                length = user32.GetWindowTextLengthW(hwnd)
-                if length > 0:
-                    buf = ctypes.create_unicode_buffer(length + 1)
-                    user32.GetWindowTextW(hwnd, buf, length + 1)
-                    if partial.lower() in buf.value.lower():
-                        result.append(hwnd)
-            return True
-
-        WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
-        ctypes.windll.user32.EnumWindows(WNDENUMPROC(callback), 0)
-        return result[0] if result else None
-
-    async def cinema_mode(self):
-        print("Ativando modo cinema...")
-
-        # Verificar se YouTube já está aberto (título da janela contém "YouTube")
-        hwnd = self._find_window_by_title("YouTube")
-
-        if hwnd:
-            print("YouTube já aberto — trazendo para frente...")
-            ctypes.windll.user32.ShowWindow(hwnd, 9)   # SW_RESTORE
-            ctypes.windll.user32.SetForegroundWindow(hwnd)
-            await asyncio.sleep(0.5)
-        else:
-            print("Abrindo YouTube no Brave...")
-            brave_path = r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe"
-            if os.path.exists(brave_path):
-                subprocess.Popen([brave_path, "--new-window", "https://youtube.com"])
-            else:
-                subprocess.Popen(["start", "https://youtube.com"], shell=True)
-            await asyncio.sleep(3)  # aguardar carregamento
-
-        # Colocar em fullscreen via F11
-        pyautogui.press('f11')
-        await asyncio.sleep(0.5)
-
-        # Manter apenas TV/HDMI — /external = segundo monitor detectado pelo hardware (TV)
-        # /internal manteria o VGA (primeiro detectado), ignorando configuração de "primário" do Windows
-        subprocess.Popen(["DisplaySwitch.exe", "/external"])
-
-        # Volume confortável
-        await self.set_volume(40)
-        print("Modo cinema ativado!")
-
-    async def console_mode(self):
-        print("Iniciando Steam Big Picture...")
-        steam_paths = [
-            r"C:\Program Files (x86)\Steam\steam.exe",
-            r"C:\Program Files\Steam\steam.exe",
-        ]
-        exe = next((p for p in steam_paths if os.path.exists(p)), None)
-        if exe:
-            # -gamepadui = Steam novo (2022+); abre diretamente em Big Picture
-            subprocess.Popen([exe, "-gamepadui"])
-            print("Steam Big Picture iniciado!")
-        else:
-            # Fallback: protocolo steam:// via shell (requer Steam já instalado)
-            subprocess.Popen(["start", "steam://open/bigpicture"], shell=True)
-            print("Steam Big Picture iniciado via URI!")
-
-    async def retro_console_mode(self):
-        print("Ativando modo console retro...")
-        brave_path = r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe"
-        url = "http://192.168.0.225:1004/console"
-        if os.path.exists(brave_path):
-            subprocess.Popen([brave_path, "--start-fullscreen", url])
-        else:
-            subprocess.Popen(["start", url], shell=True)
-        print("Modo retro console ativado!")
-
-    async def night_mode(self):
-        print("Ativando night mode...")
-        await self.set_volume(15)
-        self._set_night_light(True)
-        subprocess.Popen(["DisplaySwitch.exe", "/external"])
-        print("Night mode ativado!")
-
-    async def dual_monitor(self):
-        print("Ativando duplo monitor...")
-        subprocess.Popen(["DisplaySwitch.exe", "/extend"])
-        print("Modo estendido ativado!")
-
-    async def claude_yes(self):
-        """Traz terminal com Claude para frente e pressiona Enter para confirmar prompts"""
-        for title in ["Claude", "Windows Terminal", "cmd"]:
-            hwnd = self._find_window_by_title(title)
-            if hwnd:
-                ctypes.windll.user32.ShowWindow(hwnd, 9)   # SW_RESTORE
-                ctypes.windll.user32.SetForegroundWindow(hwnd)
-                await asyncio.sleep(0.3)
-                break
-        pyautogui.press('enter')
-        print("Enter enviado ao terminal!")
-
-    def _set_night_light(self, enable: bool):
-        """Liga/desliga Luz Noturna do Windows (Night Light) via registro"""
-        key_path = (
-            r"Software\Microsoft\Windows\CurrentVersion\CloudStore\Store"
-            r"\DefaultAccount\Current"
-            r"\default$windows.data.bluelightreduction.bluelightreductionstate"
-            r"\windows.data.bluelightreduction.bluelightreductionstate"
-        )
-        try:
-            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_ALL_ACCESS) as key:
-                data = bytearray(winreg.QueryValueEx(key, "Data")[0])
-                data[18] = 0x13 if enable else 0x10
-                winreg.SetValueEx(key, "Data", 0, winreg.REG_BINARY, bytes(data))
-            # Notificar Windows da mudança para aplicar imediatamente
-            ctypes.windll.user32.SendNotifyMessageW(0xFFFF, 0x001A, 0, "ImmersiveColorSet")
-            state = "ativada" if enable else "desativada"
-            print(f"Luz noturna {state}!")
-        except Exception as e:
-            print(f"Erro ao configurar luz noturna: {e}")
-
-    # ===== ÁUDIO =====
-
-    def _get_volume_control(self):
-        """Retorna IAudioEndpointVolume compatível com pycaw antigo e novo (AudioDevice wrapper)"""
-        speakers = AudioUtilities.GetSpeakers()
-        # pycaw >= 0.6 retorna AudioDevice wrapper; ._dev contém o IMMDevice real
-        mmdevice = getattr(speakers, '_dev', speakers)
-        interface = mmdevice.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-        return cast(interface, POINTER(IAudioEndpointVolume))
-
-    async def set_volume(self, volume):
-        volume_control = self._get_volume_control()
-        volume_level = max(0, min(100, int(volume))) / 100.0
-        volume_control.SetMasterVolumeLevelScalar(volume_level, None)
-        print(f"Volume ajustado para {volume}%")
-
-    async def toggle_mute(self):
-        volume_control = self._get_volume_control()
-        current_mute = volume_control.GetMute()
-        volume_control.SetMute(not current_mute, None)
-        state = "mutado" if not current_mute else "desmutado"
-        print(f"Audio {state}!")
-
-    async def set_audio_output(self, device_name):
-        """Muda saída de áudio padrão via IPolicyConfig COM (Win7/8/10/11)"""
-        print(f"Tentando mudar para: {device_name}")
-
-        # Buscar device ID entre saídas ativas
-        target_id = None
-        active_outputs = AudioUtilities.GetAllDevices(data_flow=0, device_state=1)
-        for dev in active_outputs:
-            if dev.FriendlyName and device_name.lower() in dev.FriendlyName.lower():
-                target_id = dev.id
-                print(f"  Device encontrado: {dev.FriendlyName} (id: {dev.id})")
-                break
-
-        if not target_id:
-            raise Exception(f"Dispositivo de áudio não encontrado: {device_name}")
-
-        # Tentar IPolicyConfig (Win7/8) e _IPolicyConfigVista (Win10/11) como fallback
-        last_error = None
-        for iface in [_IPolicyConfig, _IPolicyConfigVista]:
-            try:
-                policy = comtypes.CoCreateInstance(
-                    _CLSID_PolicyConfigClient, iface, comtypes.CLSCTX_ALL
-                )
-                # eConsole=0, eMultimedia=1, eCommunications=2
-                for role in range(3):
-                    policy.SetDefaultEndpoint(target_id, role)
-                print(f"Saída de áudio alterada para: {device_name}")
-                return
-            except Exception as e:
-                last_error = e
-                continue
-
-        raise Exception(f"IPolicyConfig falhou (Win7 e Win10 GUIDs): {last_error}")
-
-    # ===== MÍDIA =====
-
-    async def media_control(self, action):
-        print(f"Media control: {action}")
-        pyautogui.press(action)
-        print(f"Media {action} executado!")
-
-    # ===== TTS =====
-
-    async def text_to_speech(self, text):
-        if not text:
-            print("Texto vazio para TTS")
-            return
-        print(f"TTS: {text}")
-        try:
-            import edge_tts
-
-            voice = os.environ.get('TTS_VOICE', 'pt-BR-AntonioNeural')
-            rate = os.environ.get('TTS_RATE', '+0%')
-
-            tts = edge_tts.Communicate(text, voice=voice, rate=rate)
-            tmp = tempfile.mktemp(suffix='.mp3')
-            await tts.save(tmp)
-
-            # playsound é bloqueante — roda em thread para não travar o loop asyncio
-            await asyncio.to_thread(playsound, tmp)
-            os.unlink(tmp)
-            print("TTS concluido!")
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            print(f"Erro no TTS: {e}")
-
-    # ===== NOTIFICAÇÃO =====
-
-    async def show_notification(self, message):
-        print(f"Notificacao: {message}")
-        try:
-            # Usar PowerShell para toast notification
-            ps_script = f'''
-            [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
-            [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom, ContentType = WindowsRuntime] | Out-Null
-            $template = @"
-            <toast>
-                <visual>
-                    <binding template="ToastGeneric">
-                        <text>PC Control</text>
-                        <text>{message}</text>
-                    </binding>
-                </visual>
-            </toast>
-"@
-            $xml = New-Object Windows.Data.Xml.Dom.XmlDocument
-            $xml.LoadXml($template)
-            $toast = [Windows.UI.Notifications.ToastNotification]::new($xml)
-            [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("PC Control").Show($toast)
-            '''
-            subprocess.run(
-                ["powershell", "-Command", ps_script],
-                capture_output=True, timeout=10
-            )
-            print("Notificacao enviada!")
-        except Exception as e:
-            print(f"Erro na notificacao: {e}")
-
-    # ===== APPS =====
-
-    async def open_application(self, app_name):
-        print(f"Abrindo: {app_name}")
-        apps = {
-            'youtube': lambda: subprocess.Popen([
-                r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe",
-                "https://youtube.com"
-            ]),
-            'brave': lambda: subprocess.Popen([
-                r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe"
-            ]),
-            'league': lambda: self._open_lol(),
-            'lol':    lambda: self._open_lol(),
-            'steam': lambda: subprocess.Popen([
-                r"C:\Program Files (x86)\Steam\steam.exe"
-            ]),
-            'ytmusic': lambda: subprocess.Popen([
-                r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe",
-                "https://music.youtube.com"
-            ]),
-            'discord': lambda: subprocess.Popen([
-                os.path.expanduser(r"~\AppData\Local\Discord\Update.exe"),
-                "--processStart", "Discord.exe"
-            ]),
-        }
-
-        app_lower = app_name.lower() if app_name else ""
-        if app_lower in apps:
-            try:
-                apps[app_lower]()
-                print(f"{app_name} aberto!")
-            except Exception as e:
-                print(f"Erro ao abrir {app_name}: {e}")
-        else:
-            print(f"App nao configurado: {app_name}")
-
-    def _open_lol(self):
-        """Abre League of Legends tentando múltiplos caminhos conhecidos."""
-        # Tentar Riot Client primeiro (lança LoL via launcher oficial)
-        riot_client_paths = [
-            r"C:\Riot Games\Riot Client\RiotClientServices.exe",
-            r"C:\Program Files\Riot Games\Riot Client\RiotClientServices.exe",
-        ]
-        for path in riot_client_paths:
-            if os.path.exists(path):
-                subprocess.Popen([path,
-                    "--launch-product=league_of_legends",
-                    "--launch-patchline=live"])
-                print("LoL iniciado via Riot Client!")
-                return
-
-        # Fallback: executável direto do LeagueClient
-        lol_paths = [
-            r"C:\Riot Games\League of Legends\LeagueClient.exe",
-            r"C:\Program Files\Riot Games\League of Legends\LeagueClient.exe",
-            r"C:\Program Files (x86)\Riot Games\League of Legends\LeagueClient.exe",
-        ]
-        for path in lol_paths:
-            if os.path.exists(path):
-                subprocess.Popen([path])
-                print("LoL iniciado!")
-                return
-
-        print("League of Legends nao encontrado!")
-
-    # ===== CONEXÃO =====
+    # ── conexão WebSocket ──
 
     async def connect(self):
         while True:
             try:
-                print(f"\nConectando ao servidor: {SERVER_URL}")
-                print(f"   MAC: {self.mac_address}")
-                print(f"   IP: {self.ip}")
-                print(f"   Hostname: {self.hostname}")
+                print(f"\nConectando: {SERVER_URL}")
+                print(f"  MAC:      {self.mac_address}")
+                print(f"  IP:       {self.ip}")
+                print(f"  Hostname: {self.hostname}")
+                if USER_TOKEN:
+                    print(f"  Token:    {USER_TOKEN[:8]}...")
 
-                async with websockets.connect(SERVER_URL) as websocket:
-                    # Registrar no servidor
-                    await websocket.send(json.dumps({
-                        'type': 'register',
-                        'macAddress': self.mac_address,
-                        'ip': self.ip,
-                        'hostname': self.hostname,
+                async with websockets.connect(SERVER_URL) as ws:
+                    await ws.send(json.dumps({
+                        'type':         'register',
+                        'macAddress':   self.mac_address,
+                        'token':        USER_TOKEN,
+                        'ip':           self.ip,
+                        'hostname':     self.hostname,
                         'audioDevices': self.get_audio_devices(),
-                        'systemInfo': self.get_system_info()
+                        'systemInfo':   self.get_system_info(),
                     }))
 
-                    print("Conectado ao servidor!")
+                    heartbeat = asyncio.create_task(self.send_heartbeat(ws))
 
-                    heartbeat_task = asyncio.create_task(
-                        self.send_heartbeat(websocket)
-                    )
-
-                    async for message in websocket:
+                    async for message in ws:
                         data = json.loads(message)
-
                         if data['type'] == 'command':
                             await self.handle_command(
                                 data['command'],
                                 data.get('params', {}),
-                                websocket
+                                ws
                             )
                         elif data['type'] == 'registered':
-                            print("Registrado com sucesso!")
+                            print(f"Registrado com sucesso! Comandos disponiveis: {len(COMMANDS)}")
 
             except websockets.exceptions.ConnectionClosed:
                 print(f"Conexao perdida. Reconectando em {RECONNECT_DELAY}s...")
             except Exception as e:
                 print(f"Erro: {e}")
-                print(f"   Tentando novamente em {RECONNECT_DELAY}s...")
 
             await asyncio.sleep(RECONNECT_DELAY)
 
 
-def main():
-    # Forçar UTF-8 no stdout/stderr (evita crash por encoding cp1252 no Windows)
-    import io
-    if hasattr(sys.stdout, 'buffer'):
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace', line_buffering=True)
-    if hasattr(sys.stderr, 'buffer'):
-        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace', line_buffering=True)
+# ──────────────────────────────────────────────
+# Entry point
+# ──────────────────────────────────────────────
 
-    print("=" * 60)
-    print("  PC CONTROL CLIENT")
-    print("=" * 60)
+if __name__ == '__main__':
+    # Garantir UTF-8 no console Windows
+    if sys.stdout.encoding != 'utf-8':
+        sys.stdout.reconfigure(encoding='utf-8')
+    if sys.stderr.encoding != 'utf-8':
+        sys.stderr.reconfigure(encoding='utf-8')
 
+    print("PC Control Client")
+    print(f"Comandos carregados: {list(COMMANDS.keys())}")
     client = PCControlClient()
-
-    try:
-        asyncio.run(client.connect())
-    except KeyboardInterrupt:
-        print("\n\nCliente encerrado pelo usuario")
-
-
-if __name__ == "__main__":
-    main()
+    asyncio.run(client.connect())

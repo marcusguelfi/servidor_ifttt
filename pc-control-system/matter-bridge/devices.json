@@ -12,6 +12,8 @@
   { "name": "Modo Console",            "command": "console-mode" },
   { "name": "Modo Retro",              "command": "retro-console" },
   { "name": "Modo Noturno",            "command": "night-mode" },
+  { "name": "Modo Gamer",              "command": "game-mode" },
+  { "name": "Modo Dev",                "command": "dev-mode" },
   { "name": "Ativar Segundo Monitor",  "command": "dual-monitor" },
   { "name": "Tela Cheia",              "command": "fullscreen" },
   { "name": "Mutar PC",                "command": "mute" },
