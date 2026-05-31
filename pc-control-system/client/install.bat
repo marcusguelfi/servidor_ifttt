@@ -1,62 +1,51 @@
 @echo off
+chcp 65001 > nul
 echo ========================================
 echo   PC CONTROL CLIENT - INSTALADOR
 echo ========================================
 echo.
 
-:: Verificar se Python está instalado
+:: Verificar Python
 python --version >nul 2>&1
 if errorlevel 1 (
     echo [ERRO] Python nao encontrado!
-    echo Por favor, instale Python 3.8+ de https://python.org
+    echo Instale Python 3.8+ de https://python.org
     pause
     exit /b 1
 )
-
 echo [OK] Python encontrado!
 echo.
 
-:: Instalar dependências
+:: Instalar dependencias
 echo Instalando dependencias...
 pip install -r requirements.txt
-
 if errorlevel 1 (
     echo [ERRO] Falha ao instalar dependencias
     pause
     exit /b 1
 )
-
 echo.
-echo [OK] Dependencias instaladas com sucesso!
-echo.
-
-:: Configurar IP do servidor
-echo ========================================
-echo   CONFIGURACAO
-echo ========================================
-echo.
-set /p SERVER_IP="Digite o IP do seu servidor: "
-
-:: Atualizar IP no arquivo Python
-powershell -Command "(gc pc_client.py) -replace 'SERVER_URL = \"ws://SEU_SERVIDOR_IP:3000\"', 'SERVER_URL = \"ws://%SERVER_IP%:3000\"' | Out-File -encoding ASCII pc_client.py"
-
-echo.
-echo [OK] Configuracao concluida!
+echo [OK] Dependencias instaladas!
 echo.
 
-:: Criar atalho para inicialização automática
-echo Deseja criar atalho na inicializacao automatica? (S/N)
-set /p AUTO_START=""
+:: Mostrar configuracao atual (config.json ja vem pronto do download)
+echo Configuracao atual:
+python -c "import json; c=json.load(open('config.json')); print('  Servidor: ' + c.get('server_url','?')); print('  Token:    ' + c.get('user_token','?')[:12] + '...')"
+echo.
+
+:: Recriar run_client.vbs via PowerShell (evita bugs com ) e acentos no CMD)
+powershell -NoProfile -Command ^
+    "$vbs = 'Set WshShell = CreateObject(""WScript.Shell"")' + [char]13 + [char]10 + 'WshShell.Run ""python """""""" & Replace(WScript.ScriptFullName, ""run_client.vbs"", ""pc_client.py"") & """""""", 0, False'; [System.IO.File]::WriteAllText([System.IO.Path]::Combine((Get-Location).Path, 'run_client.vbs'), $vbs, [System.Text.Encoding]::ASCII)"
+
+echo [OK] run_client.vbs criado!
+echo.
+
+:: Criar atalho na inicializacao automatica
+set /p AUTO_START="Iniciar com o Windows automaticamente? (S/N): "
 
 if /i "%AUTO_START%"=="S" (
-    :: Criar VBS para executar em background
-    echo Set WshShell = CreateObject("WScript.Shell") > run_client.vbs
-    echo WshShell.Run "python ""%CD%\pc_client.py""", 0, False >> run_client.vbs
-    
-    :: Criar atalho na pasta de inicialização
-    set STARTUP_FOLDER=%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup
-    powershell "$s=(New-Object -COM WScript.Shell).CreateShortcut('%STARTUP_FOLDER%\PCControl.lnk');$s.TargetPath='%CD%\run_client.vbs';$s.Save()"
-    
+    set "STARTUP=%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup"
+    powershell -NoProfile -Command "$s=(New-Object -COM WScript.Shell).CreateShortcut('%STARTUP%\PCControl.lnk'); $s.TargetPath=[System.IO.Path]::Combine((Get-Location).Path,'run_client.vbs'); $s.Save()"
     echo [OK] Atalho criado na inicializacao!
 )
 
@@ -65,9 +54,10 @@ echo ========================================
 echo   INSTALACAO CONCLUIDA!
 echo ========================================
 echo.
-echo Para iniciar o cliente agora, execute:
+echo Para iniciar agora:
 echo   python pc_client.py
 echo.
-echo Ou use o atalho: run_client.vbs
+echo Para iniciar em background:
+echo   run_client.vbs
 echo.
 pause
