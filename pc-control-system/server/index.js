@@ -18,6 +18,8 @@ const SERVER_HOST = process.env.SERVER_HOST || `http://localhost:${PORT}`;
 const CLIENT_WS_URL = process.env.CLIENT_WS_URL || `ws://192.168.0.225:${PORT}`;
 // Porta do management HTTP da matter-bridge
 const MATTER_MGMT_PORT = parseInt(process.env.MATTER_MGMT_PORT || '5541', 10);
+// Host da matter-bridge — em Docker Linux, usar host-gateway para alcançar container em network_mode:host
+const MATTER_MGMT_HOST = process.env.MATTER_MGMT_HOST || 'host.docker.internal';
 
 // Inicializar storage
 if (!fs.existsSync(DATA_PATH)) fs.mkdirSync(DATA_PATH, { recursive: true });
@@ -270,7 +272,7 @@ app.get('/api/download/client', (req, res) => {
 // ────────────────────────────────────────────────────────
 
 function _matterRequest(method, urlPath, res) {
-  const options = { hostname: 'localhost', port: MATTER_MGMT_PORT, path: urlPath, method };
+  const options = { hostname: MATTER_MGMT_HOST, port: MATTER_MGMT_PORT, path: urlPath, method };
   const req = http.request(options, (matterRes) => {
     let body = '';
     matterRes.on('data', d => body += d);

@@ -20,6 +20,9 @@ services:
       - CLIENT_WS_URL=${CLIENT_WS_URL:-ws://192.168.0.225:3000}
       # Porta do management HTTP da matter-bridge (deve bater com MGMT_PORT abaixo)
       - MATTER_MGMT_PORT=5541
+      - MATTER_MGMT_HOST=host.docker.internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - pc-control-network
 
