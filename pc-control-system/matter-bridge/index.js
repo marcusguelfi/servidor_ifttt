@@ -107,17 +107,26 @@ async function loadConnectedPCs() {
         "PCs conectarem"
     );
     if (live) {
-        const pcs = live.filter(p => p.online);
-        console.log(`[Bridge] PCs online: ${pcs.map(p => p.hostname).join(', ')}`);
-        saveJson(PC_CACHE_PATH, pcs);
-        return pcs;
+        let pcs = live.filter(p => p.online);
+        // Se DEFAULT_MAC definido → só o PC deste bridge
+        if (DEFAULT_MAC) {
+            pcs = pcs.filter(p => p.macAddress === DEFAULT_MAC);
+            if (pcs.length === 0) {
+                console.warn(`[Bridge] PC com MAC ${DEFAULT_MAC} não está online. Aguardando cache...`);
+            }
+        }
+        if (pcs.length > 0) {
+            console.log(`[Bridge] PCs deste bridge: ${pcs.map(p => p.hostname).join(', ')}`);
+            saveJson(PC_CACHE_PATH, pcs);
+            return pcs;
+        }
     }
     const cached = loadJson(PC_CACHE_PATH);
     if (cached && cached.length > 0) {
         console.warn(`[Bridge] Timeout. Usando ${cached.length} PC(s) em cache.`);
         return cached;
     }
-    console.warn("[Bridge] Nenhum PC disponível.");
+    console.warn("[Bridge] Nenhum PC disponível para este bridge.");
     return [];
 }
 
