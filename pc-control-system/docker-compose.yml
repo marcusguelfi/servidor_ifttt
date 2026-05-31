@@ -18,9 +18,9 @@ services:
       - API_KEY=${API_KEY:-}
       # URL WebSocket para o zip de download do cliente
       - CLIENT_WS_URL=${CLIENT_WS_URL:-ws://192.168.0.200:3000}
-      # Mapa de MACs → portas mgmt dos bridges (JSON)
-      # Formato: [{"mac":"AA:BB:CC:DD:EE:FF","mgmtPort":5541},...]
-      - MATTER_BRIDGES=${MATTER_BRIDGES:-[]}
+      # Slots pré-provisionados de bridges — auto-atribuídos por MAC na primeira conexão
+      # Um número por bridge: [mgmtPort_slot1, mgmtPort_slot2, ...]
+      - MATTER_BRIDGE_SLOTS=[5541,5543,5545]
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
@@ -45,6 +45,25 @@ services:
     volumes:
       - matter-bridge-marcus:/data
 
+  # Bridge slot 3 — para um terceiro usuário (auto-atribuído)
+  matter-bridge-slot3:
+    build:
+      context: ./matter-bridge
+      dockerfile: Dockerfile
+    container_name: pc-matter-bridge-slot3
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      - pc-control-server
+    environment:
+      - SERVER_URL=http://localhost:3000
+      - DEFAULT_MAC=${PC_MAC_SLOT3:-}
+      - BRIDGE_PORT=5544
+      - BRIDGE_ID=bridge-slot3
+      - MGMT_PORT=5545
+    volumes:
+      - matter-bridge-slot3:/data
+
   # Bridge do Pai — porta Matter 5542, mgmt 5543
   matter-bridge-pai:
     build:
@@ -68,6 +87,7 @@ volumes:
   pc-control-data:
   matter-bridge-marcus:
   matter-bridge-pai:
+  matter-bridge-slot3:
 
 networks:
   pc-control-network:

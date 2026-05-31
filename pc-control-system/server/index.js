@@ -7,8 +7,9 @@ const path       = require('path');
 const http       = require('http');
 const archiver   = require('archiver');
 
-const users   = require('./users');
-const customCmds = require('./custom-commands');
+const users          = require('./users');
+const customCmds     = require('./custom-commands');
+const bridgeSlots    = require('./bridge-assignments');
 
 const app      = express();
 const PORT     = process.env.PORT     || 3000;
@@ -27,15 +28,30 @@ try { MATTER_BRIDGES = JSON.parse(MATTER_BRIDGES_RAW); } catch (_) {}
 const MATTER_MGMT_PORT_DEFAULT = parseInt(process.env.MATTER_MGMT_PORT || '5541', 10);
 
 function getMgmtPortForMac(mac) {
-  if (MATTER_BRIDGES.length === 0) return MATTER_MGMT_PORT_DEFAULT;
-  const bridge = MATTER_BRIDGES.find(b => b.mac === mac);
-  return bridge ? bridge.mgmtPort : MATTER_BRIDGES[0].mgmtPort;
+  // 1. Verificar slot auto-atribuído (bridge-assignments.js)
+  if (mac) {
+    const assigned = bridgeSlots.getMgmtPort(mac);
+    if (assigned) return assigned;
+  }
+  // 2. Fallback: mapa estático via env var MATTER_BRIDGES
+  if (MATTER_BRIDGES.length > 0) {
+    const bridge = MATTER_BRIDGES.find(b => b.mac === mac);
+    if (bridge) return bridge.mgmtPort;
+    return MATTER_BRIDGES[0].mgmtPort;
+  }
+  // 3. Fallback legacy
+  return MATTER_MGMT_PORT_DEFAULT;
 }
 
 // Inicializar storage
 if (!fs.existsSync(DATA_PATH)) fs.mkdirSync(DATA_PATH, { recursive: true });
 users.init(DATA_PATH);
 customCmds.init(DATA_PATH);
+
+// Slots de bridges pré-provisionados no docker-compose
+// Ex: MATTER_BRIDGE_SLOTS=[5541,5543,5545] — um slot por bridge disponível
+const MATTER_BRIDGE_SLOTS = JSON.parse(process.env.MATTER_BRIDGE_SLOTS || '[]');
+bridgeSlots.init(DATA_PATH, MATTER_BRIDGE_SLOTS);
 
 // Middleware
 app.use(cors());
@@ -77,14 +93,17 @@ wss.on('connection', (ws) => {
 
       if (data.type === 'register') {
         const user = users.getByToken(data.token);
+        // Auto-atribuir slot de bridge Matter a este MAC
+        const bridgeMgmtPort = bridgeSlots.getOrAssign(data.macAddress);
         connectedPCs.set(data.macAddress, {
           ws,
-          macAddress: data.macAddress,
-          ip:         data.ip,
-          hostname:   data.hostname,
-          userId:     user ? user.id : null,
-          username:   user ? user.username : null,
-          lastSeen:   Date.now(),
+          macAddress:      data.macAddress,
+          ip:              data.ip,
+          hostname:        data.hostname,
+          userId:          user ? user.id : null,
+          username:        user ? user.username : null,
+          bridgeMgmtPort,
+          lastSeen:        Date.now(),
         });
         if (data.systemInfo)   systemInfoCache.set(data.macAddress, data.systemInfo);
         if (data.audioDevices) audioDevicesCache.set(data.macAddress, data.audioDevices);
