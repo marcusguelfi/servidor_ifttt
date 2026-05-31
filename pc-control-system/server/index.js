@@ -17,10 +17,20 @@ const API_KEY  = process.env.API_KEY  || '';
 const SERVER_HOST = process.env.SERVER_HOST || `http://localhost:${PORT}`;
 // URL que o cliente usa para conectar via WebSocket (enviada no zip de download)
 const CLIENT_WS_URL = process.env.CLIENT_WS_URL || `ws://192.168.0.225:${PORT}`;
-// Porta do management HTTP da matter-bridge
-const MATTER_MGMT_PORT = parseInt(process.env.MATTER_MGMT_PORT || '5541', 10);
-// Host da matter-bridge — em Docker Linux, usar host-gateway para alcançar container em network_mode:host
+// Host dos bridges Matter (network_mode:host → via host-gateway)
 const MATTER_MGMT_HOST = process.env.MATTER_MGMT_HOST || 'host.docker.internal';
+// Mapa MAC → porta mgmt: [{"mac":"AA:BB:...","mgmtPort":5541},...]
+// Fallback: porta única legacy
+const MATTER_BRIDGES_RAW = process.env.MATTER_BRIDGES || '[]';
+let MATTER_BRIDGES = [];
+try { MATTER_BRIDGES = JSON.parse(MATTER_BRIDGES_RAW); } catch (_) {}
+const MATTER_MGMT_PORT_DEFAULT = parseInt(process.env.MATTER_MGMT_PORT || '5541', 10);
+
+function getMgmtPortForMac(mac) {
+  if (MATTER_BRIDGES.length === 0) return MATTER_MGMT_PORT_DEFAULT;
+  const bridge = MATTER_BRIDGES.find(b => b.mac === mac);
+  return bridge ? bridge.mgmtPort : MATTER_BRIDGES[0].mgmtPort;
+}
 
 // Inicializar storage
 if (!fs.existsSync(DATA_PATH)) fs.mkdirSync(DATA_PATH, { recursive: true });
@@ -301,8 +311,8 @@ app.get('/api/download/client', (req, res) => {
 // Matter Bridge — proxy do management HTTP (porta 5541)
 // ────────────────────────────────────────────────────────
 
-function _matterRequest(method, urlPath, res) {
-  const options = { hostname: MATTER_MGMT_HOST, port: MATTER_MGMT_PORT, path: urlPath, method };
+function _matterRequest(method, urlPath, res, port) {
+  const options = { hostname: MATTER_MGMT_HOST, port, path: urlPath, method };
   const req = http.request(options, (matterRes) => {
     let body = '';
     matterRes.on('data', d => body += d);
@@ -315,8 +325,29 @@ function _matterRequest(method, urlPath, res) {
   req.end();
 }
 
-app.get('/api/matter/status',  (_, res) => _matterRequest('GET',  '/status', res));
-app.post('/api/matter/reset',  (_, res) => _matterRequest('POST', '/reset',  res));
+// Retorna status do bridge do usuário logado (pelo MAC do PC dele)
+app.get('/api/matter/status', (req, res) => {
+  const user = getUserFromReq(req);
+  let mac = req.query.mac || '';
+  if (!mac && user) {
+    for (const [m, pc] of connectedPCs.entries()) {
+      if (pc.userId === user.id) { mac = m; break; }
+    }
+  }
+  _matterRequest('GET', '/status', res, getMgmtPortForMac(mac));
+});
+
+// Reset do bridge do usuário logado
+app.post('/api/matter/reset', (req, res) => {
+  const user = getUserFromReq(req);
+  let mac = '';
+  if (user) {
+    for (const [m, pc] of connectedPCs.entries()) {
+      if (pc.userId === user.id) { mac = m; break; }
+    }
+  }
+  _matterRequest('POST', '/reset', res, getMgmtPortForMac(mac));
+});
 
 // ────────────────────────────────────────────────────────
 // Health check

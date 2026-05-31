@@ -16,38 +16,58 @@ services:
       - PORT=3000
       - DATA_PATH=/data
       - API_KEY=${API_KEY:-}
-      # URL WebSocket que os clientes usam para conectar (incluída no zip de download)
-      - CLIENT_WS_URL=${CLIENT_WS_URL:-ws://192.168.0.225:3000}
-      # Porta do management HTTP da matter-bridge (deve bater com MGMT_PORT abaixo)
-      - MATTER_MGMT_PORT=5541
-      - MATTER_MGMT_HOST=host.docker.internal
+      # URL WebSocket para o zip de download do cliente
+      - CLIENT_WS_URL=${CLIENT_WS_URL:-ws://192.168.0.200:3000}
+      # Mapa de MACs → portas mgmt dos bridges (JSON)
+      # Formato: [{"mac":"AA:BB:CC:DD:EE:FF","mgmtPort":5541},...]
+      - MATTER_BRIDGES=${MATTER_BRIDGES:-[]}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
       - pc-control-network
 
-  matter-bridge:
+  # Bridge do Marcus — porta Matter 5540, mgmt 5541
+  matter-bridge-marcus:
     build:
       context: ./matter-bridge
       dockerfile: Dockerfile
-    container_name: pc-matter-bridge
+    container_name: pc-matter-bridge-marcus
     restart: unless-stopped
-    # network_mode: host é obrigatório para Matter (mDNS UDP 5353 + Matter TCP/UDP 5540)
     network_mode: host
     depends_on:
       - pc-control-server
     environment:
       - SERVER_URL=http://localhost:3000
-      # MAC address do PC principal dono desta bridge
-      # Obtenha no web UI após conectar o cliente, ou via: python -c "import uuid; print(':'.join(['{:02x}'.format((uuid.getnode()>>e)&0xff) for e in range(0,12,2)][::-1]))"
-      - DEFAULT_MAC=${PC_DEFAULT_MAC:-}
+      - DEFAULT_MAC=${PC_MAC_MARCUS:-}
+      - BRIDGE_PORT=5540
+      - BRIDGE_ID=bridge-marcus
       - MGMT_PORT=5541
     volumes:
-      - matter-bridge-data:/data
+      - matter-bridge-marcus:/data
+
+  # Bridge do Pai — porta Matter 5542, mgmt 5543
+  matter-bridge-pai:
+    build:
+      context: ./matter-bridge
+      dockerfile: Dockerfile
+    container_name: pc-matter-bridge-pai
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      - pc-control-server
+    environment:
+      - SERVER_URL=http://localhost:3000
+      - DEFAULT_MAC=${PC_MAC_PAI:-}
+      - BRIDGE_PORT=5542
+      - BRIDGE_ID=bridge-pai
+      - MGMT_PORT=5543
+    volumes:
+      - matter-bridge-pai:/data
 
 volumes:
   pc-control-data:
-  matter-bridge-data:
+  matter-bridge-marcus:
+  matter-bridge-pai:
 
 networks:
   pc-control-network:

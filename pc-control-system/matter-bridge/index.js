@@ -17,7 +17,9 @@ import qrcode                              from "qrcode-terminal";
 const __dirname   = dirname(fileURLToPath(import.meta.url));
 const SERVER_URL  = process.env.SERVER_URL  || "http://localhost:3000";
 const DEFAULT_MAC = process.env.DEFAULT_MAC || "";
-const MGMT_PORT   = parseInt(process.env.MGMT_PORT || "5541", 10);
+const MGMT_PORT   = parseInt(process.env.MGMT_PORT   || "5541", 10);
+const BRIDGE_PORT = parseInt(process.env.BRIDGE_PORT || "5540", 10);
+const BRIDGE_ID   = process.env.BRIDGE_ID || "pc-matter-bridge";
 
 // devices.json agora é uma lista de ações (template por PC)
 const deviceTemplate = JSON.parse(readFileSync(join(__dirname, "devices.json"), "utf8"));
@@ -265,15 +267,17 @@ async function main() {
     console.log(`[Bridge] Total de devices: ${allDevices.length} (${pcDevices.length} PC + ${audioDevices.length} áudio + ${customDevices.length} custom)`);
 
     matterServer = await ServerNode.create({
-        id: "pc-matter-bridge",
-        network: { port: 5540 },
+        id: BRIDGE_ID,
+        network: { port: BRIDGE_PORT },
         commissioning: { passcode: 20202021, discriminator: 3840 },
         productDescription: { name: "PC Bridge", deviceType: AggregatorEndpoint.deviceType },
         basicInformation: {
             vendorName: "PC Control", vendorId: VendorId(0xfff1),
-            nodeLabel: "PC Matter Bridge", productName: "PC Matter Bridge",
-            productLabel: "PC Matter Bridge", productId: 0x8000,
-            serialNumber: "pc-bridge-001", uniqueId: "pc-matter-bridge-001",
+            nodeLabel: BRIDGE_ID.substring(0, 32),
+            productName: "PC Matter Bridge", productLabel: "PC Matter Bridge",
+            productId: 0x8000,
+            serialNumber: BRIDGE_ID.substring(0, 32),
+            uniqueId:     BRIDGE_ID.substring(0, 32),
         },
     });
 
