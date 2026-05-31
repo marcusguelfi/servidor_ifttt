@@ -70,6 +70,25 @@ function saveCachedAudioDevices(devices) {
     }
 }
 
+async function loadCustomCommands() {
+    try {
+        const res = await fetch(`${SERVER_URL}/api/custom-commands`);
+        if (res.ok) {
+            const data = await res.json();
+            const cmds = data.commands || [];
+            if (cmds.length > 0) {
+                console.log(`[Bridge] Custom commands: ${cmds.map(c => c.label).join(', ')}`);
+                return cmds.map(c => ({
+                    name:    c.label.substring(0, 32),
+                    command: c.command,
+                    params:  c.params || {},
+                }));
+            }
+        }
+    } catch (_) {}
+    return [];
+}
+
 async function loadAudioDevices() {
     const deadline = Date.now() + AUDIO_WAIT_TIMEOUT_MS;
     let attempt = 0;
@@ -141,8 +160,9 @@ mgmtServer.listen(MGMT_PORT, () => {
 async function main() {
     Environment.default.vars.set("path.root", "/data");
 
-    const audioDeviceEntries = await loadAudioDevices();
-    const devices = [...staticDevices, ...audioDeviceEntries];
+    const audioDeviceEntries  = await loadAudioDevices();
+    const customDeviceEntries = await loadCustomCommands();
+    const devices = [...staticDevices, ...audioDeviceEntries, ...customDeviceEntries];
 
     matterServer = await ServerNode.create({
         id: "pc-matter-bridge",

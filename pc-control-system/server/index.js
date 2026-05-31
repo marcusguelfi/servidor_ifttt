@@ -7,7 +7,8 @@ const path       = require('path');
 const http       = require('http');
 const archiver   = require('archiver');
 
-const users = require('./users');
+const users   = require('./users');
+const customCmds = require('./custom-commands');
 
 const app      = express();
 const PORT     = process.env.PORT     || 3000;
@@ -24,6 +25,7 @@ const MATTER_MGMT_HOST = process.env.MATTER_MGMT_HOST || 'host.docker.internal';
 // Inicializar storage
 if (!fs.existsSync(DATA_PATH)) fs.mkdirSync(DATA_PATH, { recursive: true });
 users.init(DATA_PATH);
+customCmds.init(DATA_PATH);
 
 // Middleware
 app.use(cors());
@@ -157,6 +159,34 @@ app.get('/api/me', (req, res) => {
       online:     (Date.now() - pc.lastSeen) < 30000,
     }));
   res.json({ success: true, username: user.username, pcs });
+});
+
+// ────────────────────────────────────────────────────────
+// Custom Commands
+// ────────────────────────────────────────────────────────
+
+// Listar (público — Matter bridge também usa sem auth)
+app.get('/api/custom-commands', (req, res) => {
+  res.json({ commands: customCmds.list() });
+});
+
+// Criar (requer token)
+app.post('/api/custom-commands', (req, res) => {
+  const user = getUserFromReq(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Não autenticado' });
+  const { label, command, params } = req.body || {};
+  const result = customCmds.add(user.id, user.username, label, command, params || {});
+  if (result.error) return res.status(400).json({ success: false, error: result.error });
+  res.json({ success: true, command: result });
+});
+
+// Deletar (requer token + ser dono)
+app.delete('/api/custom-commands/:id', (req, res) => {
+  const user = getUserFromReq(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Não autenticado' });
+  const result = customCmds.remove(req.params.id, user.id);
+  if (result.error) return res.status(404).json({ success: false, error: result.error });
+  res.json({ success: true });
 });
 
 // ────────────────────────────────────────────────────────

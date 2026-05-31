@@ -861,9 +861,13 @@
 
         <!-- Comandos Customizados -->
         <div class="section">
-            <div class="section-title">Comandos Customizados</div>
-            <div class="custom-form">
-                <div class="custom-row">
+            <div class="section-title">Meus Comandos
+                <button onclick="toggleCCForm()" style="margin-left:auto;background:none;border:1px solid var(--border);color:var(--text-dim);padding:2px 10px;border-radius:3px;cursor:pointer;font-family:var(--font-mono);font-size:0.9em" id="ccToggleBtn">+ novo</button>
+            </div>
+
+            <!-- Formulário (recolhível) -->
+            <div id="ccForm" style="display:none;margin-bottom:12px">
+                <div class="custom-row" style="margin-bottom:6px">
                     <div>
                         <div class="custom-label">Nome do bot&#xE3;o</div>
                         <input type="text" class="custom-input" id="ccLabel" placeholder="Ex: Abrir Spotify">
@@ -876,13 +880,21 @@
                         <div class="custom-label">Par&#xE2;metros (JSON)</div>
                         <input type="text" class="custom-input" id="ccParams" placeholder='{"app":"spotify"}'>
                     </div>
-                    <button class="btn success" onclick="addCustomCmd()" style="height:36px;padding:0 14px;align-self:end">+ Add</button>
+                    <button class="btn success" onclick="addCustomCmd()" style="height:36px;padding:0 14px;align-self:end">&#x2713; salvar</button>
                 </div>
-                <div class="custom-label" style="margin-top:2px;font-style:italic">
-                    Comandos dispon&#xED;veis: shutdown, restart, sleep, lock-pc, monitor-off, set-volume, mute, cinema-mode, console-mode, night-mode, game-mode, dev-mode, open-app, tts, notification, fullscreen, dual-monitor...
+                <div style="font-size:0.62em;color:var(--text-dim)">
+                    Comandos: shutdown, restart, sleep, lock-pc, monitor-off, set-volume, mute, open-app, tts, notification, cinema-mode, console-mode, night-mode, game-mode, dev-mode, fullscreen, dual-monitor, press-key, type-text...
                 </div>
             </div>
-            <div class="custom-btns" id="customBtns"></div>
+
+            <!-- Botões dos comandos customizados -->
+            <div class="btn-grid" id="customBtns"></div>
+
+            <!-- Sincronizar com Alexa -->
+            <div style="margin-top:10px;font-size:0.72em;color:var(--text-dim)">
+                &#x1F4AC; Ap&#xF3;s adicionar/remover comandos, sincronize com a Alexa:
+                <button class="btn" onclick="syncMatterCmds()" style="display:inline-flex;padding:4px 12px;margin-left:8px;font-size:0.9em">&#x21BB; Sync Alexa</button>
+            </div>
         </div>
 
         <!-- Alexa / Matter Bridge -->
@@ -1104,46 +1116,65 @@
 
         // ── Custom Commands ────────────────────────────────────────────
 
-        let customCmds = JSON.parse(localStorage.getItem('pc_custom_cmds') || '[]');
-
-        function renderCustomCmds() {
-            const container = document.getElementById('customBtns');
-            if (!customCmds.length) {
-                container.innerHTML = '<span style="font-size:.72em;color:var(--text-dim);font-style:italic">Nenhum comando criado ainda.</span>';
-                return;
-            }
-            container.innerHTML = customCmds.map((c, i) => `
-                <div class="custom-btn-item" onclick="runCustomCmd(${i})">
-                    &#x25B6; ${c.label}
-                    <span class="custom-del" onclick="event.stopPropagation();deleteCustomCmd(${i})" title="Remover">&#x2715;</span>
-                </div>`).join('');
+        let ccFormOpen = false;
+        function toggleCCForm() {
+            ccFormOpen = !ccFormOpen;
+            document.getElementById('ccForm').style.display = ccFormOpen ? '' : 'none';
+            document.getElementById('ccToggleBtn').textContent = ccFormOpen ? '✕ fechar' : '+ novo';
         }
 
-        function addCustomCmd() {
-            const label  = document.getElementById('ccLabel').value.trim();
-            const cmd    = document.getElementById('ccCmd').value.trim();
-            const rawP   = document.getElementById('ccParams').value.trim();
-            if (!label || !cmd) { toast('Nome e comando s&#xE3;o obrigat&#xF3;rios', true); return; }
-            let params = {};
-            if (rawP) {
-                try { params = JSON.parse(rawP); }
-                catch { toast('JSON de par&#xE2;metros inv&#xE1;lido', true); return; }
+        async function loadCustomCmds() {
+            try {
+                const res = await fetch(`${API}/api/custom-commands`, { headers: authHeaders() });
+                const data = await res.json();
+                renderCustomCmds(data.commands || []);
+            } catch { renderCustomCmds([]); }
+        }
+
+        function renderCustomCmds(cmds) {
+            const container = document.getElementById('customBtns');
+            if (!cmds.length) {
+                container.innerHTML = '<span style="font-size:.72em;color:var(--text-dim);font-style:italic">Nenhum comando ainda. Clique em "+ novo" para criar.</span>';
+                return;
             }
-            customCmds.push({ label, cmd, params });
-            localStorage.setItem('pc_custom_cmds', JSON.stringify(customCmds));
+            container.innerHTML = cmds.map(c => `
+                <button class="btn" onclick="cmd('${c.command}', ${JSON.stringify(c.params)})" style="position:relative">
+                    <span class="icon">&#x25B6;</span>${c.label}
+                    <span onclick="event.stopPropagation();deleteCustomCmd('${c.id}')"
+                          style="position:absolute;top:4px;right:6px;opacity:.35;font-size:.8em;cursor:pointer"
+                          title="Remover">&#x2715;</span>
+                </button>`).join('');
+        }
+
+        async function addCustomCmd() {
+            const label = document.getElementById('ccLabel').value.trim();
+            const command = document.getElementById('ccCmd').value.trim();
+            const rawP  = document.getElementById('ccParams').value.trim();
+            if (!label || !command) { toast('Nome e comando obrigatórios', true); return; }
+            let params = {};
+            if (rawP) { try { params = JSON.parse(rawP); } catch { toast('JSON inválido', true); return; } }
+            const res  = await fetch(`${API}/api/custom-commands`, {
+                method: 'POST', headers: authHeaders(),
+                body: JSON.stringify({ label, command, params })
+            });
+            const data = await res.json();
+            if (!data.success) { toast(data.error || 'erro', true); return; }
             document.getElementById('ccLabel').value = '';
             document.getElementById('ccCmd').value   = '';
             document.getElementById('ccParams').value = '';
-            renderCustomCmds();
             toast(label + ' criado!');
+            loadCustomCmds();
         }
 
-        function runCustomCmd(i) { cmd(customCmds[i].cmd, customCmds[i].params); }
+        async function deleteCustomCmd(id) {
+            await fetch(`${API}/api/custom-commands/${id}`, { method: 'DELETE', headers: authHeaders() });
+            loadCustomCmds();
+        }
 
-        function deleteCustomCmd(i) {
-            customCmds.splice(i, 1);
-            localStorage.setItem('pc_custom_cmds', JSON.stringify(customCmds));
-            renderCustomCmds();
+        async function syncMatterCmds() {
+            toast('Reiniciando Matter bridge para sincronizar Alexa...');
+            await fetch(`${API}/api/matter/reset`, { method: 'POST', headers: authHeaders() });
+            setTimeout(loadMatterStatus, 4000);
         }
 
         // ── Matter Status ─────────────────────────────────────────────
@@ -1309,11 +1340,11 @@
 
         // ── Init ──────────────────────────────────────────────────────
 
-        renderCustomCmds();
         checkAuth();
         if (userToken) {
             loadPCs();
             loadMatterStatus();
+            loadCustomCmds();
         }
         setInterval(() => { if (userToken) loadPCs(); }, 5000);
     </script>
