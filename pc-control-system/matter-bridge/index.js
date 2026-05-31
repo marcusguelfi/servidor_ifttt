@@ -82,7 +82,7 @@ async function loadAudioDevices() {
                 if (Array.isArray(audioDevs) && audioDevs.length > 0) {
                     console.log(`[Bridge] Áudio devices (tentativa ${attempt}): ${audioDevs.map(d => d.name).join(", ")}`);
                     const entries = audioDevs.map(d => ({
-                        name:    d.name.length > 50 ? d.name.substring(0, 50) : d.name,
+                        name:    d.name.substring(0, 32),
                         command: "set-audio-device",
                         params:  { device: d.name },
                     }));
@@ -174,12 +174,15 @@ async function main() {
         const id  = `device-${index}`;
         const mac = device.macAddress || DEFAULT_MAC;
 
+        // Matter spec: nodeLabel max 32 chars
+        const nodeLabel = device.name.substring(0, 32);
+
         if (device.type === "dimmer") {
             const ep = new Endpoint(
                 DimmableLightDevice.with(BridgedDeviceBasicInformationServer, QuietIdentifyServer),
                 {
                     id,
-                    bridgedDeviceBasicInformation: { nodeLabel: device.name, reachable: true, uniqueId: `${id}-u` },
+                    bridgedDeviceBasicInformation: { nodeLabel, reachable: true, uniqueId: `${id}-u` },
                     onOff:        { onOff: true },
                     levelControl: { currentLevel: 127, minLevel: 1, maxLevel: 254 },
                 }
@@ -196,7 +199,7 @@ async function main() {
                 OnOffPlugInUnitDevice.with(BridgedDeviceBasicInformationServer, QuietIdentifyServer),
                 {
                     id,
-                    bridgedDeviceBasicInformation: { nodeLabel: device.name, reachable: true, uniqueId: `${id}-u` },
+                    bridgedDeviceBasicInformation: { nodeLabel, reachable: true, uniqueId: `${id}-u` },
                     onOff: { onOff: false },
                 }
             );

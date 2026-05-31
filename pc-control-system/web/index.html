@@ -534,6 +534,32 @@
             .app-grid { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }
         }
 
+        /* ── Custom Commands ───────────────────────────────────────── */
+        .custom-form { display: flex; flex-direction: column; gap: 8px; }
+        .custom-row  { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 7px; align-items: end; }
+        .custom-input {
+            background: var(--surface2); color: var(--text-bright);
+            border: 1px solid var(--border); padding: 8px 10px;
+            border-radius: var(--radius); font-family: var(--font-mono);
+            font-size: 0.78em; outline: none;
+            transition: border-color .2s, box-shadow .2s;
+        }
+        .custom-input::placeholder { color: var(--text-dim); font-style: italic; }
+        .custom-input:focus { border-color: var(--green); box-shadow: 0 0 8px rgba(0,229,52,.15); }
+        .custom-label { font-size: 0.6em; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px; }
+        .custom-btns  { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+        .custom-btn-item {
+            background: var(--green-muted); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 8px 12px;
+            cursor: pointer; font-family: var(--font-mono); font-size: 0.78em;
+            color: var(--text); display: flex; align-items: center; gap: 6px;
+            transition: background .15s, border-color .15s;
+        }
+        .custom-btn-item:hover { background: var(--green-glow); border-color: var(--green); color: var(--green); }
+        .custom-del { opacity: .4; font-size: 0.9em; cursor: pointer; }
+        .custom-del:hover { opacity: 1; color: var(--red); }
+        @media (max-width: 520px) { .custom-row { grid-template-columns: 1fr 1fr; } }
+
         /* ── Auth Overlay ──────────────────────────────────────────── */
         .auth-overlay {
             position: fixed; inset: 0;
@@ -833,6 +859,32 @@
             </div>
         </div>
 
+        <!-- Comandos Customizados -->
+        <div class="section">
+            <div class="section-title">Comandos Customizados</div>
+            <div class="custom-form">
+                <div class="custom-row">
+                    <div>
+                        <div class="custom-label">Nome do bot&#xE3;o</div>
+                        <input type="text" class="custom-input" id="ccLabel" placeholder="Ex: Abrir Spotify">
+                    </div>
+                    <div>
+                        <div class="custom-label">Comando</div>
+                        <input type="text" class="custom-input" id="ccCmd" placeholder="Ex: open-app">
+                    </div>
+                    <div>
+                        <div class="custom-label">Par&#xE2;metros (JSON)</div>
+                        <input type="text" class="custom-input" id="ccParams" placeholder='{"app":"spotify"}'>
+                    </div>
+                    <button class="btn success" onclick="addCustomCmd()" style="height:36px;padding:0 14px;align-self:end">+ Add</button>
+                </div>
+                <div class="custom-label" style="margin-top:2px;font-style:italic">
+                    Comandos dispon&#xED;veis: shutdown, restart, sleep, lock-pc, monitor-off, set-volume, mute, cinema-mode, console-mode, night-mode, game-mode, dev-mode, open-app, tts, notification, fullscreen, dual-monitor...
+                </div>
+            </div>
+            <div class="custom-btns" id="customBtns"></div>
+        </div>
+
         <!-- Alexa / Matter Bridge -->
         <div class="section">
             <div class="section-title">Alexa / Matter</div>
@@ -1050,6 +1102,50 @@
         function mouseScroll(d)  { cmd('mouse-scroll', { delta: d }); }
         function switchAudio(el) { cmd('set-audio-device', { device: el.dataset.dev }); }
 
+        // ── Custom Commands ────────────────────────────────────────────
+
+        let customCmds = JSON.parse(localStorage.getItem('pc_custom_cmds') || '[]');
+
+        function renderCustomCmds() {
+            const container = document.getElementById('customBtns');
+            if (!customCmds.length) {
+                container.innerHTML = '<span style="font-size:.72em;color:var(--text-dim);font-style:italic">Nenhum comando criado ainda.</span>';
+                return;
+            }
+            container.innerHTML = customCmds.map((c, i) => `
+                <div class="custom-btn-item" onclick="runCustomCmd(${i})">
+                    &#x25B6; ${c.label}
+                    <span class="custom-del" onclick="event.stopPropagation();deleteCustomCmd(${i})" title="Remover">&#x2715;</span>
+                </div>`).join('');
+        }
+
+        function addCustomCmd() {
+            const label  = document.getElementById('ccLabel').value.trim();
+            const cmd    = document.getElementById('ccCmd').value.trim();
+            const rawP   = document.getElementById('ccParams').value.trim();
+            if (!label || !cmd) { toast('Nome e comando s&#xE3;o obrigat&#xF3;rios', true); return; }
+            let params = {};
+            if (rawP) {
+                try { params = JSON.parse(rawP); }
+                catch { toast('JSON de par&#xE2;metros inv&#xE1;lido', true); return; }
+            }
+            customCmds.push({ label, cmd, params });
+            localStorage.setItem('pc_custom_cmds', JSON.stringify(customCmds));
+            document.getElementById('ccLabel').value = '';
+            document.getElementById('ccCmd').value   = '';
+            document.getElementById('ccParams').value = '';
+            renderCustomCmds();
+            toast(label + ' criado!');
+        }
+
+        function runCustomCmd(i) { cmd(customCmds[i].cmd, customCmds[i].params); }
+
+        function deleteCustomCmd(i) {
+            customCmds.splice(i, 1);
+            localStorage.setItem('pc_custom_cmds', JSON.stringify(customCmds));
+            renderCustomCmds();
+        }
+
         // ── Matter Status ─────────────────────────────────────────────
 
         async function loadMatterStatus() {
@@ -1213,6 +1309,7 @@
 
         // ── Init ──────────────────────────────────────────────────────
 
+        renderCustomCmds();
         checkAuth();
         if (userToken) {
             loadPCs();
