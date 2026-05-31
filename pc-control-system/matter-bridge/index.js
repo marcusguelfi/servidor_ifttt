@@ -19,22 +19,67 @@ const SERVER_URL  = process.env.SERVER_URL  || "http://localhost:3000";
 const DEFAULT_MAC = process.env.DEFAULT_MAC || "";
 const MGMT_PORT   = parseInt(process.env.MGMT_PORT || "5541", 10);
 
-const AUDIO_CACHE_PATH       = "/data/audio-devices-cache.json";
-const AUDIO_WAIT_TIMEOUT_MS  = 60_000;
-const AUDIO_POLL_INTERVAL_MS = 3_000;
+// devices.json agora é uma lista de ações (template por PC)
+const deviceTemplate = JSON.parse(readFileSync(join(__dirname, "devices.json"), "utf8"));
 
-const staticDevices = JSON.parse(readFileSync(join(__dirname, "devices.json"), "utf8"));
+// Caches em disco
+const PC_CACHE_PATH    = "/data/pc-cache.json";
+const AUDIO_CACHE_PATH = "/data/audio-devices-cache.json";
 
-// Suprime WARN "triggerEffect: Throws unimplemented exception"
+const WAIT_TIMEOUT_MS  = 45_000;
+const POLL_INTERVAL_MS = 3_000;
+
 class QuietIdentifyServer extends IdentifyServer {
     async triggerEffect() {}
 }
 
-// Estado global do commissioning (preenchido após server.start)
 let pairingCodes = null;
 let matterServer = null;
 
-// ── Chamar API do servidor principal ──────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+function shortenHostname(hostname) {
+    return hostname
+        .replace(/^DESKTOP-/i, '')
+        .replace(/^LAPTOP-/i,  '')
+        .replace(/-PC$/i,      '')
+        .replace(/_PC$/i,      '')
+        .substring(0, 10)
+        .toUpperCase();
+}
+
+function loadJson(path) {
+    try { if (existsSync(path)) return JSON.parse(readFileSync(path, "utf8")); } catch (_) {}
+    return null;
+}
+
+function saveJson(path, data) {
+    try { writeFileSync(path, JSON.stringify(data, null, 2)); } catch (_) {}
+}
+
+async function pollUntil(url, validator, label) {
+    const deadline = Date.now() + WAIT_TIMEOUT_MS;
+    let attempt = 0;
+    while (Date.now() < deadline) {
+        attempt++;
+        try {
+            const res = await fetch(url);
+            if (res.ok) {
+                const data = await res.json();
+                if (validator(data)) return data;
+            }
+        } catch (_) {}
+        const remaining = Math.round((deadline - Date.now()) / 1000);
+        if (remaining > 0) {
+            console.log(`[Bridge] Aguardando ${label}... (${remaining}s, tentativa ${attempt})`);
+            await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+        }
+    }
+    return null;
+}
+
+// ── Chamar API do servidor ─────────────────────────────────────────────────
+
 async function callApi(command, params = {}, macAddress = DEFAULT_MAC) {
     const url = macAddress
         ? `${SERVER_URL}/api/webhook/${macAddress}/${command}`
@@ -47,96 +92,106 @@ async function callApi(command, params = {}, macAddress = DEFAULT_MAC) {
         });
         console.log(`[API] ${command} → ${macAddress || "default"}: HTTP ${res.status}`);
     } catch (err) {
-        console.error(`[API] Erro em ${command}: ${err.message}`);
+        console.error(`[API] Erro: ${err.message}`);
     }
 }
 
-// ── Discovery dinâmico de dispositivos de áudio ────────────────────────────
-function loadCachedAudioDevices() {
-    try {
-        if (existsSync(AUDIO_CACHE_PATH)) {
-            const cached = JSON.parse(readFileSync(AUDIO_CACHE_PATH, "utf8"));
-            if (Array.isArray(cached) && cached.length > 0) return cached;
+// ── Carregar PCs conectados (com cache) ────────────────────────────────────
+
+async function loadConnectedPCs() {
+    const live = await pollUntil(
+        `${SERVER_URL}/api/pcs`,
+        data => Array.isArray(data) && data.length > 0,
+        "PCs conectarem"
+    );
+    if (live) {
+        const pcs = live.filter(p => p.online);
+        console.log(`[Bridge] PCs online: ${pcs.map(p => p.hostname).join(', ')}`);
+        saveJson(PC_CACHE_PATH, pcs);
+        return pcs;
+    }
+    const cached = loadJson(PC_CACHE_PATH);
+    if (cached && cached.length > 0) {
+        console.warn(`[Bridge] Timeout. Usando ${cached.length} PC(s) em cache.`);
+        return cached;
+    }
+    console.warn("[Bridge] Nenhum PC disponível.");
+    return [];
+}
+
+// ── Gerar devices por PC (template × PCs) ─────────────────────────────────
+
+function buildPCDevices(pcs) {
+    const devices = [];
+    for (const pc of pcs) {
+        const prefix = shortenHostname(pc.hostname);
+        for (const t of deviceTemplate) {
+            devices.push({
+                name:       `${prefix} ${t.action}`.substring(0, 32),
+                command:    t.command,
+                type:       t.type,
+                params:     t.params || {},
+                macAddress: pc.macAddress,
+            });
         }
-    } catch (_) {}
-    return null;
+        console.log(`[Bridge] ${pcs.indexOf(pc) + 1}. ${pc.hostname} (${pc.macAddress}) → ${deviceTemplate.length} devices`);
+    }
+    return devices;
 }
 
-function saveCachedAudioDevices(devices) {
-    try {
-        writeFileSync(AUDIO_CACHE_PATH, JSON.stringify(devices, null, 2), "utf8");
-    } catch (err) {
-        console.warn(`[Bridge] Não foi possível salvar cache de áudio: ${err.message}`);
+// ── Áudio devices (do PC padrão, com cache) ───────────────────────────────
+
+async function loadAudioDevices() {
+    const live = await pollUntil(
+        `${SERVER_URL}/api/audio-devices`,
+        data => Array.isArray(data) && data.length > 0,
+        "áudio devices"
+    );
+    if (live) {
+        const entries = live.map(d => ({
+            name:    d.name.substring(0, 32),
+            command: "set-audio-device",
+            params:  { device: d.name },
+            macAddress: DEFAULT_MAC,
+        }));
+        saveJson(AUDIO_CACHE_PATH, entries);
+        return entries;
     }
+    const cached = loadJson(AUDIO_CACHE_PATH);
+    if (cached) { console.warn(`[Bridge] Áudio: usando ${cached.length} device(s) em cache.`); return cached; }
+    return [];
 }
+
+// ── Custom commands (globais, sem prefix de PC) ────────────────────────────
 
 async function loadCustomCommands() {
     try {
         const res = await fetch(`${SERVER_URL}/api/custom-commands`);
         if (res.ok) {
             const data = await res.json();
-            const cmds = data.commands || [];
-            if (cmds.length > 0) {
-                console.log(`[Bridge] Custom commands: ${cmds.map(c => c.label).join(', ')}`);
-                return cmds.map(c => ({
-                    name:    c.label.substring(0, 32),
-                    command: c.command,
-                    params:  c.params || {},
-                }));
-            }
+            const cmds = (data.commands || []).map(c => ({
+                name:    c.label.substring(0, 32),
+                command: c.command,
+                params:  c.params || {},
+                macAddress: DEFAULT_MAC,
+            }));
+            if (cmds.length > 0) console.log(`[Bridge] Custom commands: ${cmds.map(c => c.name).join(', ')}`);
+            return cmds;
         }
     } catch (_) {}
     return [];
 }
 
-async function loadAudioDevices() {
-    const deadline = Date.now() + AUDIO_WAIT_TIMEOUT_MS;
-    let attempt = 0;
-    while (Date.now() < deadline) {
-        attempt++;
-        try {
-            const res = await fetch(`${SERVER_URL}/api/audio-devices`);
-            if (res.ok) {
-                const audioDevs = await res.json();
-                if (Array.isArray(audioDevs) && audioDevs.length > 0) {
-                    console.log(`[Bridge] Áudio devices (tentativa ${attempt}): ${audioDevs.map(d => d.name).join(", ")}`);
-                    const entries = audioDevs.map(d => ({
-                        name:    d.name.substring(0, 32),
-                        command: "set-audio-device",
-                        params:  { device: d.name },
-                    }));
-                    saveCachedAudioDevices(entries);
-                    return entries;
-                }
-            }
-        } catch (_) {}
-        const remaining = Math.round((deadline - Date.now()) / 1000);
-        if (remaining > 0) {
-            console.log(`[Bridge] PC client ainda não conectou — aguardando... (${remaining}s restantes)`);
-            await new Promise(r => setTimeout(r, AUDIO_POLL_INTERVAL_MS));
-        }
-    }
-    const cached = loadCachedAudioDevices();
-    if (cached) {
-        console.warn(`[Bridge] Timeout. Usando ${cached.length} device(s) em cache.`);
-        return cached;
-    }
-    console.warn("[Bridge] Nenhum áudio device disponível. Iniciando sem devices de áudio.");
-    return [];
-}
+// ── Management HTTP ────────────────────────────────────────────────────────
 
-// ── Management HTTP (QR code + reset para Alexa) ──────────────────────────
 const mgmtServer = createServer((req, res) => {
     res.setHeader("Content-Type", "application/json");
-
     if (req.method === "GET" && req.url === "/status") {
-        const commissioned = matterServer?.lifecycle?.isCommissioned ?? false;
         res.end(JSON.stringify({
-            commissioned,
-            qrCode:     pairingCodes?.qrPairingCode     ?? null,
-            manualCode: pairingCodes?.manualPairingCode  ?? null,
+            commissioned: matterServer?.lifecycle?.isCommissioned ?? false,
+            qrCode:       pairingCodes?.qrPairingCode    ?? null,
+            manualCode:   pairingCodes?.manualPairingCode ?? null,
         }));
-
     } else if (req.method === "POST" && req.url === "/reset") {
         try {
             execSync("rm -rf /data/*");
@@ -145,97 +200,88 @@ const mgmtServer = createServer((req, res) => {
         } catch (e) {
             res.end(JSON.stringify({ success: false, error: e.message }));
         }
-
     } else {
         res.statusCode = 404;
         res.end(JSON.stringify({ error: "Not found" }));
     }
 });
 
-mgmtServer.listen(MGMT_PORT, () => {
-    console.log(`[Bridge] Management HTTP em :${MGMT_PORT}`);
-});
+mgmtServer.listen(MGMT_PORT, () => console.log(`[Bridge] Management HTTP em :${MGMT_PORT}`));
 
-// ── Matter Bridge principal ────────────────────────────────────────────────
+// ── Registrar endpoint Matter ─────────────────────────────────────────────
+
+async function registerDevice(aggregator, device, index) {
+    const id       = `device-${index}`;
+    const mac      = device.macAddress || DEFAULT_MAC;
+    const nodeLabel = device.name; // já truncado em 32
+
+    if (device.type === "dimmer") {
+        const ep = new Endpoint(
+            DimmableLightDevice.with(BridgedDeviceBasicInformationServer, QuietIdentifyServer),
+            {
+                id,
+                bridgedDeviceBasicInformation: { nodeLabel, reachable: true, uniqueId: `${id}-u` },
+                onOff:        { onOff: true },
+                levelControl: { currentLevel: 127, minLevel: 1, maxLevel: 254 },
+            }
+        );
+        await aggregator.add(ep);
+        ep.events.levelControl.currentLevel$Changed.on(async (level) => {
+            const volume = Math.round(((level ?? 127) / 254) * 100);
+            await callApi("set-volume", { volume }, mac);
+        });
+    } else {
+        const ep = new Endpoint(
+            OnOffPlugInUnitDevice.with(BridgedDeviceBasicInformationServer, QuietIdentifyServer),
+            { id, bridgedDeviceBasicInformation: { nodeLabel, reachable: true, uniqueId: `${id}-u` }, onOff: { onOff: false } }
+        );
+        await aggregator.add(ep);
+        ep.events.onOff.onOff$Changed.on(async (value) => {
+            if (value) {
+                await callApi(device.command, device.params ?? {}, mac);
+                setTimeout(async () => {
+                    try { await ep.set({ onOff: { onOff: false } }); } catch (_) {}
+                }, 1500);
+            }
+        });
+    }
+}
+
+// ── Main ───────────────────────────────────────────────────────────────────
+
 async function main() {
     Environment.default.vars.set("path.root", "/data");
 
-    const audioDeviceEntries  = await loadAudioDevices();
-    const customDeviceEntries = await loadCustomCommands();
-    const devices = [...staticDevices, ...audioDeviceEntries, ...customDeviceEntries];
+    // Carregar todos os devices em paralelo
+    console.log("[Bridge] Carregando devices...");
+    const [pcs, audioDevices, customDevices] = await Promise.all([
+        loadConnectedPCs(),
+        loadAudioDevices(),
+        loadCustomCommands(),
+    ]);
+
+    const pcDevices     = buildPCDevices(pcs);
+    const allDevices    = [...pcDevices, ...audioDevices, ...customDevices];
+    console.log(`[Bridge] Total de devices: ${allDevices.length} (${pcDevices.length} PC + ${audioDevices.length} áudio + ${customDevices.length} custom)`);
 
     matterServer = await ServerNode.create({
         id: "pc-matter-bridge",
         network: { port: 5540 },
-        commissioning: {
-            passcode:      20202021,
-            discriminator: 3840,
-        },
-        productDescription: {
-            name:       "PC Bridge",
-            deviceType: AggregatorEndpoint.deviceType,
-        },
+        commissioning: { passcode: 20202021, discriminator: 3840 },
+        productDescription: { name: "PC Bridge", deviceType: AggregatorEndpoint.deviceType },
         basicInformation: {
-            vendorName:    "PC Control",
-            vendorId:      VendorId(0xfff1),
-            nodeLabel:     "PC Matter Bridge",
-            productName:   "PC Matter Bridge",
-            productLabel:  "PC Matter Bridge",
-            productId:     0x8000,
-            serialNumber:  "pc-bridge-001",
-            uniqueId:      "pc-matter-bridge-001",
+            vendorName: "PC Control", vendorId: VendorId(0xfff1),
+            nodeLabel: "PC Matter Bridge", productName: "PC Matter Bridge",
+            productLabel: "PC Matter Bridge", productId: 0x8000,
+            serialNumber: "pc-bridge-001", uniqueId: "pc-matter-bridge-001",
         },
     });
 
     const aggregator = new Endpoint(AggregatorEndpoint, { id: "aggregator" });
     await matterServer.add(aggregator);
 
-    for (const [index, device] of devices.entries()) {
-        const id  = `device-${index}`;
-        const mac = device.macAddress || DEFAULT_MAC;
-
-        // Matter spec: nodeLabel max 32 chars
-        const nodeLabel = device.name.substring(0, 32);
-
-        if (device.type === "dimmer") {
-            const ep = new Endpoint(
-                DimmableLightDevice.with(BridgedDeviceBasicInformationServer, QuietIdentifyServer),
-                {
-                    id,
-                    bridgedDeviceBasicInformation: { nodeLabel, reachable: true, uniqueId: `${id}-u` },
-                    onOff:        { onOff: true },
-                    levelControl: { currentLevel: 127, minLevel: 1, maxLevel: 254 },
-                }
-            );
-            await aggregator.add(ep);
-            ep.events.levelControl.currentLevel$Changed.on(async (level) => {
-                const volume = Math.round(((level ?? 127) / 254) * 100);
-                console.log(`[${device.name}] level ${level} → volume ${volume}%`);
-                await callApi("set-volume", { volume }, mac);
-            });
-
-        } else {
-            const ep = new Endpoint(
-                OnOffPlugInUnitDevice.with(BridgedDeviceBasicInformationServer, QuietIdentifyServer),
-                {
-                    id,
-                    bridgedDeviceBasicInformation: { nodeLabel, reachable: true, uniqueId: `${id}-u` },
-                    onOff: { onOff: false },
-                }
-            );
-            await aggregator.add(ep);
-            ep.events.onOff.onOff$Changed.on(async (value) => {
-                console.log(`[${device.name}] ${value ? "ON → acionando" : "OFF"}`);
-                if (value) {
-                    await callApi(device.command, device.params ?? {}, mac);
-                    setTimeout(async () => {
-                        try { await ep.set({ onOff: { onOff: false } }); }
-                        catch (e) { console.error(`[${device.name}] reset error: ${e.message}`); }
-                    }, 1500);
-                }
-            });
-        }
-        console.log(`[Bridge] Registrado: ${device.name} (${device.type ?? "switch"}) → MAC: ${mac || "default"}`);
+    for (const [index, device] of allDevices.entries()) {
+        await registerDevice(aggregator, device, index);
     }
 
     await matterServer.start();
@@ -243,27 +289,19 @@ async function main() {
     if (!matterServer.lifecycle.isCommissioned) {
         pairingCodes = matterServer.state.commissioning.pairingCodes;
         const { qrPairingCode, manualPairingCode } = pairingCodes;
-        console.log("");
-        console.log("╔══════════════════════════════════════════════════╗");
+        console.log("\n╔══════════════════════════════════════════════════╗");
         console.log("║         MATTER BRIDGE — PRONTO PARA PAREAR       ║");
-        console.log("╚══════════════════════════════════════════════════╝");
-        console.log("");
+        console.log("╚══════════════════════════════════════════════════╝\n");
         if (qrPairingCode) {
-            console.log("▼ Escaneie o QR Code abaixo com o app Alexa:");
             qrcode.generate(qrPairingCode, { small: true });
             console.log("QR Code string:", qrPairingCode);
         }
         console.log(`Código manual: ${manualPairingCode}`);
-        console.log("");
         console.log("App Alexa: Dispositivos → '+' → Adicionar → Matter → Escanear QR");
         console.log("Ou acesse: http://<servidor>:3000/api/matter/status");
-        console.log("─────────────────────────────────────────────────────");
     } else {
         console.log("[Bridge] Já comissionado. Dispositivos disponíveis na Alexa.");
     }
 }
 
-main().catch(err => {
-    console.error("[Bridge] Fatal:", err);
-    process.exit(1);
-});
+main().catch(err => { console.error("[Bridge] Fatal:", err); process.exit(1); });
