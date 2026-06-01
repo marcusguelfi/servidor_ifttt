@@ -317,10 +317,17 @@ app.get('/api/download/client', (req, res) => {
   }, null, 2);
   zip.append(config, { name: 'config.json' });
 
-  // Adicionar todos os arquivos do cliente (exceto __pycache__)
+  // Gerar run_client.vbs dinamicamente (evita corrupção de encoding no archiver)
+  // VBScript precisa de encoding ASCII e aspas exatas — não confiar no arquivo do disco
+  const vbsContent =
+    'Set WshShell = CreateObject("WScript.Shell")\r\n' +
+    'WshShell.Run "python """ & Replace(WScript.ScriptFullName, "run_client.vbs", "pc_client.py") & """", 0, False\r\n';
+  zip.append(Buffer.from(vbsContent, 'ascii'), { name: 'run_client.vbs' });
+
+  // Adicionar demais arquivos do cliente (exceto os gerados acima e __pycache__)
   zip.glob('**/*', {
     cwd: clientDir,
-    ignore: ['**/__pycache__/**', '**/*.pyc', '**/config.json'],
+    ignore: ['**/__pycache__/**', '**/*.pyc', '**/config.json', '**/run_client.vbs'],
   });
 
   zip.finalize();
