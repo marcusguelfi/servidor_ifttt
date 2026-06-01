@@ -265,15 +265,14 @@ async function main() {
 
     // Carregar todos os devices em paralelo
     console.log("[Bridge] Carregando devices...");
-    const [pcs, audioDevices, customDevices] = await Promise.all([
+    const [pcs, customDevices] = await Promise.all([
         loadConnectedPCs(),
-        loadAudioDevices(),
         loadCustomCommands(),
     ]);
 
-    const pcDevices     = buildPCDevices(pcs);
-    const allDevices    = [...pcDevices, ...audioDevices, ...customDevices];
-    console.log(`[Bridge] Total de devices: ${allDevices.length} (${pcDevices.length} PC + ${audioDevices.length} áudio + ${customDevices.length} custom)`);
+    const pcDevices  = buildPCDevices(pcs);
+    const allDevices = [...pcDevices, ...customDevices];
+    console.log(`[Bridge] Total de devices: ${allDevices.length} (${pcDevices.length} PC + ${customDevices.length} custom)`);
 
     matterServer = await ServerNode.create({
         id: BRIDGE_ID,
